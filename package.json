@@ -1,0 +1,12 @@
+{
+  "name": "verifly-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Root dev script not set yet\"",
+    "build": "echo \"Root build script not set yet\""
+  }
+}
