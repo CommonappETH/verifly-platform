@@ -8,52 +8,65 @@ Package scope assumed: `@verifly/*`. If the team picks a different scope, substi
 
 ## 0. Pre-flight
 
-- [ ] Create a work branch from `main` (e.g. `refactor/packages-consolidation`).
-- [ ] Run `bun install` at the repo root; confirm lockfile resolves cleanly.
-- [ ] Baseline build: `bun run build` in each of `apps/{admin,bank,counselor,student,university}`; record any existing warnings so we don't attribute them to the refactor.
-- [ ] Record baseline artifact sizes (e.g. `du -sh apps/*/dist`) for regression check at the end.
-- [ ] Commit a baseline tag or note the starting SHA so we can diff at the end.
+- [x] Create a work branch from `main` (e.g. `refactor/packages-consolidation`).
+  - Worked on `claude/dreamy-wu-d37809`.
+- [x] Run `bun install` at the repo root; confirm lockfile resolves cleanly.
+  - Required renaming all 5 apps from the shared `tanstack_start_ts` name to unique `@verifly/{admin,bank,counselor,student,university}` before Bun workspaces would accept them.
+- [x] Baseline build: `bun run build` in each of `apps/{admin,bank,counselor,student,university}`; record any existing warnings so we don't attribute them to the refactor.
+  - Baseline lint on admin: 870 errors / 7 warnings (all pre-existing prettier formatting on source files).
+- [x] Record baseline artifact sizes (e.g. `du -sh apps/*/dist`) for regression check at the end.
+  - admin 3.7M, bank 3.4M, counselor 3.4M, student 2.6M, university 1.8M. Saved to `/tmp/verifly_baseline_sizes.txt`.
+- [x] Commit a baseline tag or note the starting SHA so we can diff at the end.
+  - Baseline SHA: `06db2da`.
 
 ## 1. Stand up `packages/config`
 
-- [ ] Create `packages/config/` with:
-  - `package.json` — name `@verifly/config`, private, no build step.
-  - `tsconfig.base.json` — lifted from the identical app tsconfigs (ES2022, React JSX, bundler resolution). Leave `paths` out of the base.
-  - `eslint-preset.js` — lifted from the identical `eslint.config.js`.
-  - `components.base.json` — lifted from the identical shadcn config.
-  - `vite-preset.ts` — re-exports `defineConfig` wrapper if we need one; otherwise apps keep their thin wrapper and just upgrade the underlying `@lovable.dev/vite-tanstack-config` version.
-- [ ] In each app:
-  - [ ] `tsconfig.json` → `"extends": "@verifly/config/tsconfig.base.json"`, keeping per-app `paths` overrides.
-  - [ ] `eslint.config.js` → import and re-export `@verifly/config/eslint-preset`.
-  - [ ] `components.json` → extend or mirror the base (decide if shadcn generator still needs a local copy).
-- [ ] Unify `@lovable.dev/vite-tanstack-config` to `^1.4.0` (currently counselor pins `^1.3.0`).
-- [ ] Rename each `apps/*/wrangler.jsonc` `"name"` to a unique value (`verifly-admin`, `verifly-bank`, `verifly-counselor`, `verifly-student`, `verifly-university`). This fixes a latent deploy collision.
-- [ ] Verify: `bun run build` succeeds for all 5 apps; `bun run lint` passes.
+- [x] Create `packages/config/` with:
+  - [x] `package.json` — name `@verifly/config`, private, no build step.
+  - [x] `tsconfig.base.json` — lifted from the identical app tsconfigs (ES2022, React JSX, bundler resolution). Leave `paths` out of the base.
+  - [x] `eslint-preset.js` — lifted from the identical `eslint.config.js`.
+  - [x] `components.base.json` — lifted from the identical shadcn config.
+  - [ ] `vite-preset.ts` — **skipped**: apps' vite.config.ts is already a single-line `defineConfig()` wrapper over `@lovable.dev/vite-tanstack-config`, and the version is already unified at `^1.4.0` across all 5 apps. No preset needed.
+- [x] In each app:
+  - [x] `tsconfig.json` → `"extends": "@verifly/config/tsconfig.base.json"`, keeping per-app `paths` overrides.
+  - [x] `eslint.config.js` → import and re-export `@verifly/config/eslint-preset`.
+  - [x] `components.json` → kept local copies unchanged so `shadcn add` continues to work; `components.base.json` lives in `packages/config` as the canonical reference. Revisit in a later pass if we want to deduplicate further.
+- [x] Unify `@lovable.dev/vite-tanstack-config` to `^1.4.0`.
+  - Already at `^1.4.0` in all 5 apps; checklist was stale on counselor pinning `^1.3.0`. No change made.
+- [x] Rename each `apps/*/wrangler.jsonc` `"name"` to a unique value (`verifly-admin`, `verifly-bank`, `verifly-counselor`, `verifly-student`, `verifly-university`). This fixes a latent deploy collision.
+- [x] Verify: `bun run build` succeeds for all 5 apps; `bun run lint` passes.
+  - Build ✓ for all 5 apps. Lint reports pre-existing prettier errors only (870 → 869 admin; drop of 1 from a formatting-sensitive line touched incidentally). No new errors introduced.
+  - **Note**: `packages/config/package.json` had to declare the eslint plugins (`@eslint/js`, `typescript-eslint`, `eslint-plugin-*`, `globals`) as `dependencies` so Node can resolve them from the preset file's location inside the package; `eslint` and `prettier` themselves stay as `peerDependencies`.
 
 ## 2. Stand up `packages/utils`
 
-- [ ] Create `packages/utils/` with:
-  - `package.json` — name `@verifly/utils`, exports map pointing at `src/index.ts`.
-  - `src/cn.ts` — move the shadcn `cn()` helper verbatim (identical across all 5 apps).
-  - `src/index.ts` — re-export `cn`.
-- [ ] Replace imports in all 5 apps:
-  - `from "@/lib/utils"` → `from "@verifly/utils"` for `cn` usages.
-- [ ] Delete `apps/*/src/lib/utils.ts` once no references remain.
-- [ ] Verify: `bun run typecheck` (or `build`) + `lint` for each app.
-- [ ] Quick grep sanity: `grep -R "from \"@/lib/utils\"" apps/` → no results.
+- [x] Create `packages/utils/` with:
+  - [x] `package.json` — name `@verifly/utils`, exports map pointing at `src/index.ts`.
+  - [x] `src/cn.ts` — move the shadcn `cn()` helper verbatim (identical across all 5 apps).
+  - [x] `src/index.ts` — re-export `cn`.
+- [x] Replace imports in all 5 apps:
+  - [x] `from "@/lib/utils"` → `from "@verifly/utils"` for `cn` usages (237 files rewritten; all matched `import { cn } from "@/lib/utils"` with no other names).
+- [x] Delete `apps/*/src/lib/utils.ts` once no references remain.
+- [x] Verify: `bun run typecheck` (or `build`) + `lint` for each app.
+  - All 5 apps build ✓. `packages/utils/tsconfig.json` needed `@verifly/config` as a devDep so Vite's tsconfig resolver could walk up from `packages/utils/src/*.ts` to find the extends target.
+- [x] Quick grep sanity: `grep -R "from \"@/lib/utils\"" apps/` → no results.
 
 ## 3. Stand up `packages/ui` — shadcn primitives
 
-- [ ] Create `packages/ui/` with:
-  - `package.json` — name `@verifly/ui`, peer deps on `react`, `react-dom`, `@radix-ui/*` primitives the components use.
-  - `tsconfig.json` extending `@verifly/config/tsconfig.base.json`.
-  - `components.json` — the canonical shadcn config for future `npx shadcn add` runs.
-  - `src/components/ui/` — copy in all 50 primitives (accordion → tooltip). They are byte-identical across apps; pick any one as source.
-  - `src/index.ts` — re-export each primitive.
-- [ ] In each app, replace `from "@/components/ui/<x>"` with `from "@verifly/ui"`.
-- [ ] Delete `apps/*/src/components/ui/` once no references remain.
-- [ ] Verify: build + lint all 5 apps; run one portal in a browser and visually smoke-test buttons, dialogs, forms, tooltips.
-- [ ] Grep sanity: `grep -R "from \"@/components/ui/" apps/` → no results.
+- [x] Create `packages/ui/` with:
+  - [x] `package.json` — name `@verifly/ui`. Radix primitives + ancillary runtime deps (`cmdk`, `embla-carousel-react`, `input-otp`, `lucide-react`, `react-day-picker`, `react-hook-form`, `react-resizable-panels`, `recharts`, `sonner`, `vaul`, `class-variance-authority`) are `dependencies`; `react`/`react-dom` are `peerDependencies`; `@verifly/config` and `@types/react*` are `devDependencies`.
+  - [x] `tsconfig.json` extending `@verifly/config/tsconfig.base.json`.
+  - [x] `components.json` — the canonical shadcn config for future `npx shadcn add` runs (aliases rewritten to `@verifly/ui` and `@verifly/utils`).
+  - [x] `src/components/ui/` — copied all **46** primitives (checklist said 50; actual count was 46). Source: admin's copy (byte-identical across apps).
+  - [x] `src/hooks/use-mobile.tsx` — moved the `useIsMobile` hook here since `sidebar.tsx` depends on it. Only referenced by sidebar; deleted from all 5 apps.
+  - [x] `src/index.ts` — wildcard barrel re-exporting each primitive.
+- [x] In each app, replace `from "@/components/ui/<x>"` with `from "@verifly/ui"` (98 app files rewritten).
+- [x] Delete `apps/*/src/components/ui/` once no references remain. Also removed the now-empty `apps/*/src/hooks/` directories.
+- [x] Verify: build + lint all 5 apps.
+  - Build ✓ for all 5 apps. Artifact sizes: admin 3.6M, bank 3.3M, counselor 3.3M, student 2.5M, university 1.7M — within ~3% of baseline (all slightly smaller due to bundler dedup).
+  - Admin lint errors: 870 → 291 (drop is just the ~579 pre-existing prettier errors that lived in the primitives which now lint under `packages/ui` instead).
+- [ ] **Outstanding**: run one portal in a browser and visually smoke-test buttons, dialogs, forms, tooltips. Not done yet.
+- [x] Grep sanity: `grep -R "from \"@/components/ui/" apps/` → no results.
 
 ## 4. Stand up `packages/ui` — composite components
 
