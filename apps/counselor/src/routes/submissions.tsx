@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@verifly/ui";
+import { Tabs, TabsList, TabsTrigger } from "@verifly/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { submissions } from "@/lib/mock/requests";
 import { students } from "@/lib/mock/students";

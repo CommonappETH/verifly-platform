@@ -4,9 +4,9 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { MESSAGE_THREADS } from "@/lib/mock-data";
 import { formatDate } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@verifly/utils";
+import { Button } from "@verifly/ui";
+import { Textarea } from "@verifly/ui";
 import { Mail, AlertCircle, ShieldCheck, BadgeCheck, Inbox } from "lucide-react";
 
 export const Route = createFileRoute("/messages")({

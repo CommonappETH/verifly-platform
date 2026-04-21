@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Button } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { universities } from "@/lib/mock-data";
 import {

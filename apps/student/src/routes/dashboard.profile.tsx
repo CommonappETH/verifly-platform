@@ -1,16 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Progress } from "@verifly/ui";
+import { Avatar, AvatarFallback } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Label } from "@verifly/ui";
 import { toast } from "sonner";
 import {
   studentProfile, universities, applications, documents, coreEssays,

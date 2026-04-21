@@ -30,8 +30,8 @@ import {
 } from "recharts";
 import { KpiCard } from "@/components/admin/KpiCard";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { users } from "@/lib/admin-mock/users";
 import { applications } from "@/lib/admin-mock/applications";
 import { verifications } from "@/lib/admin-mock/verifications";

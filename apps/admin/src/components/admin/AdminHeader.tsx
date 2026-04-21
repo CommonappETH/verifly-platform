@@ -1,8 +1,8 @@
 import { Search } from "lucide-react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Avatar, AvatarFallback } from "@verifly/ui";
+import { Separator } from "@verifly/ui";
 
 export function AdminHeader() {
   return (

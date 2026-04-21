@@ -1,20 +1,20 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/bank/AppShell";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Badge } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Textarea } from "@verifly/ui";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@verifly/ui";
 import { useConversations } from "@/lib/use-requests";
 import { sendMessage, formatDateTime } from "@/lib/api";
 import { messageTemplates } from "@/lib/mock-data";
 import { Search, Send } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 
 export const Route = createFileRoute("/messages")({
   component: MessagesPage,

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Switch } from "@verifly/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@verifly/ui";
+import { Separator } from "@verifly/ui";
 import { Settings, Bell, Globe, Shield, LogOut, Trash2, User } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/settings")({

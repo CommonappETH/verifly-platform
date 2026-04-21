@@ -1,6 +1,6 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@verifly/ui";
 import { MapPin, Calendar, GraduationCap, Bookmark } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { University } from "@/lib/types";

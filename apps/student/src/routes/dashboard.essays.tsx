@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Button } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { coreEssays as initialEssays, type CoreEssay } from "@/lib/mock-data";
 import { FileText, Upload, Info, CheckCircle2 } from "lucide-react";

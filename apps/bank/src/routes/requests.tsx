@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/bank/AppShell";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Badge } from "@verifly/ui";
 import { StatusBadge } from "@/components/bank/StatusBadge";
 import { useRequests } from "@/lib/use-requests";
 import { formatCurrency, formatDate, maskAccount, markUnderReview } from "@/lib/api";
 import { Search, Eye, PlayCircle, ArrowUpDown } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/requests")({

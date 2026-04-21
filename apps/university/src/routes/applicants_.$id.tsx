@@ -3,9 +3,9 @@ import { AppShell } from "@/components/AppShell";
 import { getApplicant } from "@/lib/mock-data";
 import type { Applicant } from "@/lib/types";
 import { STATUS_LABEL, STATUS_TONE, VERIF_LABEL, VERIF_TONE, TYPE_TONE, DECISION_LABEL, DECISION_TONE, formatCurrency, formatDate } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@verifly/utils";
+import { Button } from "@verifly/ui";
+import { Textarea } from "@verifly/ui";
 import { ArrowLeft, Star, AlertCircle, MessageSquarePlus, FileCheck2, FileX2, ShieldCheck, Building2, Calendar, GraduationCap, MapPin, Languages, Award, BookOpen, Trophy } from "lucide-react";
 
 export const Route = createFileRoute("/applicants_/$id")({

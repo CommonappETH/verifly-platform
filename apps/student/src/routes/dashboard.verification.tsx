@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Label } from "@verifly/ui";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TimelineStepper } from "@/components/TimelineStepper";
 import { FundingBreakdown } from "@/components/FundingBreakdown";
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { TimelineEvent } from "@/lib/types";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 
 export const Route = createFileRoute("/dashboard/verification")({
   component: FinancialVerification,

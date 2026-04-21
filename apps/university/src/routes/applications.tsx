@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { APPLICANTS } from "@/lib/mock-data";
 import { STATUS_LABEL, STATUS_TONE, formatDate, TYPE_TONE } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 import type { ApplicationStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/applications")({

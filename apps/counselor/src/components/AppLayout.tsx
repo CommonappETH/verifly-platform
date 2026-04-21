@@ -1,10 +1,10 @@
 import { Outlet } from "@tanstack/react-router";
 import { Search, Bell } from "lucide-react";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@verifly/ui";
 import { AppSidebar } from "./AppSidebar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/sonner";
+import { Input } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Toaster } from "@verifly/ui";
 
 export function AppLayout() {
   return (

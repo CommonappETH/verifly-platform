@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/bank/AppShell";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Badge } from "@verifly/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { StatusBadge } from "@/components/bank/StatusBadge";
 import { useRequests } from "@/lib/use-requests";
 import { formatCurrency, formatDate } from "@/lib/api";

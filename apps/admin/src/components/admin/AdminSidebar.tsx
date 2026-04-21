@@ -19,8 +19,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
+} from "@verifly/ui";
+import { cn } from "@verifly/utils";
 
 const groups = [
   {

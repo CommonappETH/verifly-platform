@@ -6,9 +6,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+} from "@verifly/ui";
+import { Textarea } from "@verifly/ui";
+import { Button } from "@verifly/ui";
 import { toast } from "sonner";
 
 interface FlagIssueDialogProps {

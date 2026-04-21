@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/bank/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
 import { StatusBadge } from "@/components/bank/StatusBadge";
 import { useRequests } from "@/lib/use-requests";
 import { formatCurrency, formatDate, maskAccount } from "@/lib/api";
@@ -8,7 +8,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import { FileSearch, Clock, CheckCircle2, XCircle, Eye, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@verifly/ui";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,

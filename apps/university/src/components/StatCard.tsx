@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 
 export function StatCard({
   label, value, hint, tone = "default", icon,

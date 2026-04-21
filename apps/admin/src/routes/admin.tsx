@@ -1,8 +1,8 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@verifly/ui";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@verifly/ui";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,

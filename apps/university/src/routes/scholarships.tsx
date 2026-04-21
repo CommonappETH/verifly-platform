@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { APPLICANTS } from "@/lib/mock-data";
 import { formatCurrency, TYPE_TONE } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 import { Award, DollarSign, TrendingDown, Users } from "lucide-react";
 
 export const Route = createFileRoute("/scholarships")({

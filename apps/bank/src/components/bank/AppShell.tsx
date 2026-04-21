@@ -1,7 +1,7 @@
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@verifly/ui";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@verifly/ui";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (

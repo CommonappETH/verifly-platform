@@ -1,17 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Tabs, TabsList, TabsTrigger } from "@verifly/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
+import { Badge } from "@verifly/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Search, MoreHorizontal, Eye, Upload, Inbox } from "lucide-react";
 import { students } from "@/lib/mock/students";

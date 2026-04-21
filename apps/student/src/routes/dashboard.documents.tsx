@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { documents, documentCategoryLabels, documentStatusLabels } from "@/lib/mock-data";
 import { Search, Upload, FileText, FolderOpen } from "lucide-react";

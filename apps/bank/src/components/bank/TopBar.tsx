@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Bell, Search } from "lucide-react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Button } from "@verifly/ui";
 import { findRequestByCode } from "@/lib/api";
 import { toast } from "sonner";
 

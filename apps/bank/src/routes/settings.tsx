@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/bank/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Label } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Switch } from "@verifly/ui";
+import { Textarea } from "@verifly/ui";
+import { Badge } from "@verifly/ui";
 import { useState } from "react";
 import { toast } from "sonner";
 

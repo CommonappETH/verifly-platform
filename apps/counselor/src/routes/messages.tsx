@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Textarea } from "@verifly/ui";
+import { Badge } from "@verifly/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@verifly/ui";
 import { conversations, messages as messagesStore, messageTemplates } from "@/lib/mock/requests";
 import { universities } from "@/lib/mock/universities";
 import { students } from "@/lib/mock/students";
