@@ -19,7 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
-} from "@/components/ui/sidebar";
+} from "@verifly/ui";
 
 const items: { title: string; url: string; icon: typeof LayoutDashboard; exact?: boolean }[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, exact: true },

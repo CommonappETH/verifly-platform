@@ -4,8 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { APPLICANTS } from "@/lib/mock-data";
 import { DECISION_LABEL, DECISION_TONE, formatDate, TYPE_TONE, VERIF_TONE, VERIF_LABEL } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { cn } from "@verifly/utils";
+import { Button } from "@verifly/ui";
 import type { DecisionStatus } from "@/lib/types";
 import { CheckCircle2, AlertTriangle, Clock, XCircle, ShieldCheck } from "lucide-react";
 

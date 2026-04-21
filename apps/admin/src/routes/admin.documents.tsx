@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@verifly/ui";
+import { Tabs, TabsList, TabsTrigger } from "@verifly/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DataTableToolbar } from "@/components/admin/DataTableToolbar";
 import { EmptyState } from "@/components/admin/EmptyState";
 import { adminDocuments } from "@/lib/admin-mock/documents";
 import { getOrgById, getUserById } from "@/lib/admin-mock/api";
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 
 export const Route = createFileRoute("/admin/documents")({
   head: () => ({

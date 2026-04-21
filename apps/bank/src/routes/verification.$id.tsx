@@ -1,20 +1,20 @@
 import { useRef, useState } from "react";
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import { AppShell } from "@/components/bank/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Badge } from "@verifly/ui";
+import { Checkbox } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Label } from "@verifly/ui";
+import { Textarea } from "@verifly/ui";
+import { Separator } from "@verifly/ui";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@verifly/ui";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+} from "@verifly/ui";
 import { StatusBadge } from "@/components/bank/StatusBadge";
 import { useRequests } from "@/lib/use-requests";
 import {

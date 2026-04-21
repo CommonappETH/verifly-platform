@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@verifly/ui";
 import { UniversityCard } from "@/components/UniversityCard";
 import { universities } from "@/lib/mock-data";
 import { studentProfile } from "@/lib/mock-data";

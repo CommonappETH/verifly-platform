@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 import { Check } from "lucide-react";
 import type { TimelineEvent } from "@/lib/types";
 

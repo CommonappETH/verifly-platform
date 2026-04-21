@@ -1,6 +1,6 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@verifly/ui";
 import type { RequestStatus } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 
 const labels: Record<RequestStatus, string> = {
   pending: "Pending",

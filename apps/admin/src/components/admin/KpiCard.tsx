@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@verifly/ui";
+import { cn } from "@verifly/utils";
 
 interface KpiCardProps {
   label: string;

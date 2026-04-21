@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { APPLICANTS } from "@/lib/mock-data";
 import { STATUS_LABEL, STATUS_TONE, VERIF_TONE, VERIF_LABEL, TYPE_TONE, formatDate } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn } from "@verifly/utils";
 import { Users, FileSearch, ShieldCheck, UserPlus, BadgeCheck, GraduationCap, Hourglass, AlertTriangle, Calendar, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/")({

@@ -1,19 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@verifly/ui";
+import { Input } from "@verifly/ui";
+import { Label } from "@verifly/ui";
+import { Switch } from "@verifly/ui";
+import { Checkbox } from "@verifly/ui";
+import { Button } from "@verifly/ui";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+} from "@verifly/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/settings")({

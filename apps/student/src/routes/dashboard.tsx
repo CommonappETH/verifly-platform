@@ -3,12 +3,12 @@ import {
   SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter,
   SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarTrigger, useSidebar,
-} from "@/components/ui/sidebar";
+} from "@verifly/ui";
 import {
   LayoutDashboard, Search, FileText, Shield, FolderOpen, GraduationCap,
   Bell, User, Settings, LogOut, PenLine,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@verifly/ui";
 import { toast } from "sonner";
 import { notifications } from "@/lib/mock-data";
 

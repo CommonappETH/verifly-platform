@@ -7,3 +7,6 @@ build
 .env.*
 coverage
 .DS_Store
+.wrangler
+.output
+.vinxi

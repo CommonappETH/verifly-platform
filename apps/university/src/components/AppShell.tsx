@@ -3,8 +3,8 @@ import {
   LayoutDashboard, Users, FileText, GavelIcon, Award, MessageSquare,
   BarChart3, Settings, Search, Bell,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
+import { cn } from "@verifly/utils";
+import { Input } from "@verifly/ui";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },

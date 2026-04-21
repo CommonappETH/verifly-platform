@@ -4,9 +4,9 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { APPLICANTS } from "@/lib/mock-data";
 import { STATUS_LABEL, STATUS_TONE, VERIF_LABEL, VERIF_TONE, TYPE_TONE, formatDate } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { cn } from "@verifly/utils";
+import { Input } from "@verifly/ui";
+import { Button } from "@verifly/ui";
 import { Search, Star, FileText, MessageSquarePlus, StickyNote, Filter, ArrowUpDown, Award } from "lucide-react";
 
 export const Route = createFileRoute("/applicants")({

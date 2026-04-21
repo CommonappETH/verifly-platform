@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@verifly/ui";
+import { Button } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { notifications } from "@/lib/mock-data";
 import { Bell, CheckCheck, Filter } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@verifly/ui";
 
 export const Route = createFileRoute("/dashboard/messages")({
   component: MessagesPage,

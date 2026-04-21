@@ -11,26 +11,26 @@ import {
   ShieldCheck,
   DollarSign,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@verifly/ui";
+import { Tabs, TabsList, TabsTrigger } from "@verifly/ui";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
+import { Switch } from "@verifly/ui";
+import { Label } from "@verifly/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@verifly/ui";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+} from "@verifly/ui";
+import { Button } from "@verifly/ui";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@verifly/ui";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DataTableToolbar } from "@/components/admin/DataTableToolbar";
 import { EmptyState } from "@/components/admin/EmptyState";

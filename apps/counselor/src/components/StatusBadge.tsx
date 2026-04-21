@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { Badge } from "@verifly/ui";
+import { cn } from "@verifly/utils";
 import type { DocumentStatus, RequestStatus, ApplicationStatus } from "@/lib/mock/types";
 
 type AnyStatus = DocumentStatus | RequestStatus | ApplicationStatus | "complete" | "incomplete";

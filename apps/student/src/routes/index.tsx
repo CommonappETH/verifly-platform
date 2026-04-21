@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from "@verifly/ui";
+import { Card, CardContent } from "@verifly/ui";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@verifly/ui";
 import {
   GraduationCap, Shield, Globe, Users, CheckCircle2, ArrowRight,
   UserPlus, Search, FileText, Building2, BarChart3, Star, ChevronRight,
