@@ -1,0 +1,24 @@
+import type { Verification } from "./types";
+
+export const verifications: Verification[] = [
+  { id: "v1", code: "VER-2025-0001", studentId: "u1", guardianName: "Rajesh Mehta", bankId: "org-bank-3", requestedAmount: 85000, verifiedAmount: 85000, status: "approved", submittedAt: "2025-03-10T10:00:00Z", decidedAt: "2025-03-13T10:00:00Z" },
+  { id: "v2", code: "VER-2025-0002", studentId: "u2", guardianName: "Park Joon-ho", bankId: "org-bank-3", requestedAmount: 120000, verifiedAmount: null, status: "pending", submittedAt: "2025-04-01T10:00:00Z", decidedAt: null },
+  { id: "v3", code: "VER-2025-0003", studentId: "u3", guardianName: "Robert Williams", bankId: "org-bank-2", requestedAmount: 95000, verifiedAmount: 78000, status: "approved", submittedAt: "2025-03-05T10:00:00Z", decidedAt: "2025-03-12T10:00:00Z" },
+  { id: "v4", code: "VER-2025-0004", studentId: "u4", guardianName: "Marco Rossi", bankId: "org-bank-1", requestedAmount: 65000, verifiedAmount: 0, status: "rejected", submittedAt: "2025-02-08T10:00:00Z", decidedAt: "2025-02-20T10:00:00Z" },
+  { id: "v5", code: "VER-2025-0005", studentId: "u5", guardianName: "Chen Hong", bankId: "org-bank-3", requestedAmount: 110000, verifiedAmount: 110000, status: "approved", submittedAt: "2025-01-12T10:00:00Z", decidedAt: "2025-01-18T10:00:00Z" },
+  { id: "v6", code: "VER-2025-0006", studentId: "u6", guardianName: "Pierre Dubois", bankId: "org-bank-1", requestedAmount: 75000, verifiedAmount: 75000, status: "approved", submittedAt: "2025-02-22T10:00:00Z", decidedAt: "2025-03-01T10:00:00Z" },
+  { id: "v7", code: "VER-2025-0007", studentId: "u7", guardianName: "Kwame Mensah", bankId: "org-bank-4", requestedAmount: 55000, verifiedAmount: null, status: "under_review", submittedAt: "2025-03-08T10:00:00Z", decidedAt: null },
+  { id: "v8", code: "VER-2025-0008", studentId: "u8", guardianName: "Hiroshi Tanaka", bankId: "org-bank-3", requestedAmount: 140000, verifiedAmount: 140000, status: "approved", submittedAt: "2025-02-28T10:00:00Z", decidedAt: "2025-03-04T10:00:00Z" },
+  { id: "v9", code: "VER-2025-0009", studentId: "u9", guardianName: "Carlos Silva", bankId: "org-bank-2", requestedAmount: 60000, verifiedAmount: null, status: "pending", submittedAt: "2025-03-20T10:00:00Z", decidedAt: null },
+  { id: "v10", code: "VER-2025-0010", studentId: "u10", guardianName: "Saeed Haddad", bankId: "org-bank-4", requestedAmount: 90000, verifiedAmount: null, status: "pending", submittedAt: "2025-04-10T10:00:00Z", decidedAt: null },
+  { id: "v11", code: "VER-2025-0011", studentId: "u11", guardianName: "Vikram Sharma", bankId: "org-bank-1", requestedAmount: 105000, verifiedAmount: null, status: "under_review", submittedAt: "2025-03-25T10:00:00Z", decidedAt: null },
+  { id: "v12", code: "VER-2025-0012", studentId: "u12", guardianName: "Klaus Schmidt", bankId: "org-bank-1", requestedAmount: 130000, verifiedAmount: 130000, status: "approved", submittedAt: "2025-01-28T10:00:00Z", decidedAt: "2025-02-05T10:00:00Z" },
+  { id: "v13", code: "VER-2025-0013", studentId: "u1", guardianName: "Rajesh Mehta", bankId: "org-bank-3", requestedAmount: 200000, verifiedAmount: 195000, status: "flagged", submittedAt: "2025-04-05T10:00:00Z", decidedAt: null },
+  { id: "v14", code: "VER-2025-0014", studentId: "u2", guardianName: "Park Joon-ho", bankId: "org-bank-2", requestedAmount: 80000, verifiedAmount: 50000, status: "approved", submittedAt: "2025-03-30T10:00:00Z", decidedAt: "2025-04-08T10:00:00Z" },
+  { id: "v15", code: "VER-2025-0015", studentId: "u3", guardianName: "Robert Williams", bankId: "org-bank-2", requestedAmount: 70000, verifiedAmount: 0, status: "rejected", submittedAt: "2025-02-15T10:00:00Z", decidedAt: "2025-02-25T10:00:00Z" },
+  { id: "v16", code: "VER-2025-0016", studentId: "u5", guardianName: "Chen Hong", bankId: "org-bank-3", requestedAmount: 150000, verifiedAmount: null, status: "pending", submittedAt: "2025-04-12T10:00:00Z", decidedAt: null },
+  { id: "v17", code: "VER-2025-0017", studentId: "u6", guardianName: "Pierre Dubois", bankId: "org-bank-1", requestedAmount: 85000, verifiedAmount: 85000, status: "approved", submittedAt: "2025-03-15T10:00:00Z", decidedAt: "2025-03-22T10:00:00Z" },
+  { id: "v18", code: "VER-2025-0018", studentId: "u7", guardianName: "Kwame Mensah", bankId: "org-bank-4", requestedAmount: 45000, verifiedAmount: null, status: "pending", submittedAt: "2025-04-15T10:00:00Z", decidedAt: null },
+  { id: "v19", code: "VER-2025-0019", studentId: "u8", guardianName: "Hiroshi Tanaka", bankId: "org-bank-3", requestedAmount: 175000, verifiedAmount: 175000, status: "approved", submittedAt: "2025-02-10T10:00:00Z", decidedAt: "2025-02-17T10:00:00Z" },
+  { id: "v20", code: "VER-2025-0020", studentId: "u11", guardianName: "Vikram Sharma", bankId: "org-bank-3", requestedAmount: 115000, verifiedAmount: 100000, status: "flagged", submittedAt: "2025-04-08T10:00:00Z", decidedAt: null },
+];
