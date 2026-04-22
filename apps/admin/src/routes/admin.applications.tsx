@@ -10,9 +10,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@verifly/ui";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { EmptyState, StatusBadge } from "@verifly/ui";
 import { DataTableToolbar } from "@/components/admin/DataTableToolbar";
-import { EmptyState } from "@/components/admin/EmptyState";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { applications } from "@/lib/admin-mock/applications";
 import type { Application, ApplicationStatus } from "@/lib/admin-mock/types";
 import { getOrgById, getUserById } from "@/lib/admin-mock/api";
@@ -83,7 +83,7 @@ function ApplicationsPage() {
             count={filtered.length}
           />
           {filtered.length === 0 ? (
-            <EmptyState />
+            <EmptyState title="No results" />
           ) : (
             <div className="rounded-md border overflow-x-auto">
               <Table>
@@ -105,11 +105,11 @@ function ApplicationsPage() {
                       <TableCell className="font-medium">{getUserById(a.studentId)?.name}</TableCell>
                       <TableCell className="text-muted-foreground">{getOrgById(a.universityId)?.name}</TableCell>
                       <TableCell>{a.program}</TableCell>
-                      <TableCell><StatusBadge status={a.status} /></TableCell>
-                      <TableCell><StatusBadge status={a.applicantType} /></TableCell>
-                      <TableCell><StatusBadge status={a.verificationStatus} /></TableCell>
-                      <TableCell><StatusBadge status={a.documentStatus} /></TableCell>
-                      <TableCell><StatusBadge status={a.decisionStatus} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(a.status)} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(a.applicantType)} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(a.verificationStatus)} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(a.documentStatus)} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(a.decisionStatus)} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -129,9 +129,9 @@ function ApplicationsPage() {
               </SheetHeader>
               <div className="mt-6 space-y-5 text-sm">
                 <div className="flex flex-wrap gap-2">
-                  <StatusBadge status={open.status} />
-                  <StatusBadge status={open.applicantType} />
-                  <StatusBadge status={open.decisionStatus} />
+                  <StatusBadge {...statusBadgeProps(open.status)} />
+                  <StatusBadge {...statusBadgeProps(open.applicantType)} />
+                  <StatusBadge {...statusBadgeProps(open.decisionStatus)} />
                 </div>
 
                 <div>
@@ -158,7 +158,7 @@ function ApplicationsPage() {
                       <div className="rounded-md border p-3">
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-xs">{v.code}</span>
-                          <StatusBadge status={v.status} />
+                          <StatusBadge {...statusBadgeProps(v.status)} />
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
                           ${v.requestedAmount.toLocaleString()} requested via {getOrgById(v.bankId)?.name}
@@ -174,7 +174,7 @@ function ApplicationsPage() {
                     {adminDocuments.filter((d) => d.studentId === open.studentId).slice(0, 6).map((d) => (
                       <li key={d.id} className="flex items-center justify-between rounded border px-2 py-1.5">
                         <span>{d.type}</span>
-                        <StatusBadge status={d.status} />
+                        <StatusBadge {...statusBadgeProps(d.status)} />
                       </li>
                     ))}
                   </ul>

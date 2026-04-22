@@ -154,6 +154,80 @@ Create a brand-new package only when:
 
 ---
 
+## 9a. Composite components — the `tone` contract
+
+After step 4 of the refactor, the three composite components live at `packages/ui/src/components/composed/` and expose a deliberately small surface so apps can drive them from their own status vocabularies.
+
+### What was done
+
+Three components — `StatusBadge`, `EmptyState`, `StatCard` (née `KpiCard`) — previously existed in slightly different shapes across 4–5 apps. They were consolidated behind a single API per component, imported as `import { StatusBadge, EmptyState, StatCard } from "@verifly/ui"`.
+
+### Why it was done
+
+Before consolidation:
+
+- `StatusBadge` existed in 4 apps with 4 different prop shapes (typed enum vs `string`, inline style maps vs `variant` prop, admin had hardcoded role/tenant colors buried in the component).
+- `EmptyState` existed in admin (with a `hint` prop) and student (with a `description` prop) — same idea, different names.
+- `KpiCard` (admin) and `StatCard` (university) told the same visual story with different prop names.
+
+Each drift was small enough to ignore individually and big enough in aggregate that touching one meant reviewing all four. Consolidating removes the accidental polymorphism and gives every portal the same vocabulary.
+
+### How the tone contract works
+
+The shared `StatusBadge` takes **no app-specific status strings**. Its API is:
+
+```ts
+type StatusBadgeTone =
+  | "neutral"
+  | "success"
+  | "warning"
+  | "info"
+  | "destructive"
+  | "accent";
+
+interface StatusBadgeProps {
+  label: string;
+  tone?: StatusBadgeTone;
+  size?: "sm" | "md";
+  className?: string;
+}
+```
+
+Each app owns the translation from its own status vocabulary to `{ label, tone }`. In admin/bank/counselor that translation lives in `apps/<portal>/src/lib/status-badge.ts`:
+
+```ts
+// apps/admin/src/lib/status-badge.ts
+export function statusBadgeProps(status: string): { label: string; tone: StatusBadgeTone } {
+  // ...
+}
+```
+
+Call sites look like `<StatusBadge {...statusBadgeProps(a.status)} />`.
+
+Student is an exception: `apps/student/src/components/StatusBadge.tsx` is kept as a ~30-line adapter that forwards `label`/`variant`/`size` to the shared component, mapping `muted` → `neutral`. Student's call sites (30+) drive `variant` from inline data maps, so the adapter avoids a mechanical touch-every-route refactor while keeping the duplicate *implementation* out of the app.
+
+### Key concepts
+
+- **Presentational vs semantic**: the shared component cares about *tone* (how does it look), not *status* (what does it mean). Status is a domain concept and belongs in the app or in `@verifly/types`; tone is a visual concept and belongs in `@verifly/ui`.
+- **Per-app translation layer**: the `statusBadgeProps()` helper (or the student adapter) is the one place each app names its own statuses. If a backend renames `"under_review"` to something else, only that helper changes — no component edits.
+- **Inverse of "prop explosion"**: we did not teach `StatusBadge` every status every portal could ever hold. That's how the old admin version ended up with tenant-role colors living inside a generic badge.
+
+### Best practices
+
+1. When adding a new status to a portal, extend that portal's `statusBadgeProps()` map — do not add it to the shared component.
+2. If two portals keep duplicating the same tone for the same logical status (e.g. both mapping `"approved"` → `success`), that's a signal the status belongs in `@verifly/types` with a shared tone resolver — but resist extracting on just one data point.
+3. For `StatCard`, prefer `tone` (card background) or `iconClassName` (icon box background) — not both at once — to keep the visual hierarchy legible.
+4. For `EmptyState`, `title` is required. Previous admin call sites that passed no title (`<EmptyState />`) now read `<EmptyState title="No results" />` explicitly — implicit defaults hide intent.
+
+### Mistakes to avoid
+
+- **Do not import composites from their source paths** (`@verifly/ui/src/components/composed/...`). Always import from the package root: `import { StatusBadge } from "@verifly/ui"`.
+- **Do not restore app-specific strings to the shared component**. If you find yourself wanting to add a new `tone`, ask whether it's genuinely a new visual category or just a duplicate of an existing tone with a new name.
+- **Do not reintroduce the inline `function StatCard()` or `function KpiCard()` pattern inside route files**. If a route needs a different layout, build it from `Card` + `CardContent` primitives directly — don't recreate a parallel StatCard.
+- **Do not add a `variant` prop as an alias for `tone` on the shared component** to make migration cheaper. The one exception (student's adapter) is in the app, not in the package — it's explicitly a per-app translation layer, not a shared API.
+
+---
+
 ## 10. Known follow-ups
 
 Deferred on purpose; revisit once the consolidation is merged:

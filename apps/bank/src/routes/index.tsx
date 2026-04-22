@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/bank/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
-import { StatusBadge } from "@/components/bank/StatusBadge";
+import { StatCard, StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { useRequests } from "@/lib/use-requests";
 import { formatCurrency, formatDate, maskAccount } from "@/lib/api";
 import {
@@ -61,11 +62,11 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KpiCard label="Total Requests" value={total} icon={<FileSearch className="h-4 w-4" />} />
-          <KpiCard label="Pending" value={pending} icon={<Clock className="h-4 w-4 text-amber-600" />} />
-          <KpiCard label="Under Review" value={review} icon={<Eye className="h-4 w-4 text-blue-600" />} />
-          <KpiCard label="Approved" value={approved} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
-          <KpiCard label="Rejected" value={rejected} icon={<XCircle className="h-4 w-4 text-rose-600" />} />
+          <StatCard label="Total Requests" value={total} icon={<FileSearch className="h-4 w-4" />} />
+          <StatCard label="Pending" value={pending} icon={<Clock className="h-4 w-4 text-amber-600" />} />
+          <StatCard label="Under Review" value={review} icon={<Eye className="h-4 w-4 text-blue-600" />} />
+          <StatCard label="Approved" value={approved} icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} />
+          <StatCard label="Rejected" value={rejected} icon={<XCircle className="h-4 w-4 text-rose-600" />} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -88,7 +89,7 @@ function Dashboard() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-muted-foreground">{r.code}</span>
-                        <StatusBadge status={r.status} />
+                        <StatusBadge {...statusBadgeProps(r.status)} />
                       </div>
                       <div className="text-sm font-medium truncate mt-0.5">{r.student.fullName}</div>
                       <div className="text-xs text-muted-foreground">Guardian: {r.guardian.fullName} · {maskAccount(r.account.accountNumber)}</div>
@@ -122,7 +123,7 @@ function Dashboard() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs">{r.code}</span>
-                    <StatusBadge status={r.status} />
+                    <StatusBadge {...statusBadgeProps(r.status)} />
                   </div>
                   <div className="text-sm mt-0.5 truncate">{r.student.fullName}</div>
                 </Link>
@@ -137,20 +138,6 @@ function Dashboard() {
         </div>
       </div>
     </AppShell>
-  );
-}
-
-function KpiCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-          {icon}
-        </div>
-        <div className="text-2xl font-bold mt-2">{value}</div>
-      </CardContent>
-    </Card>
   );
 }
 

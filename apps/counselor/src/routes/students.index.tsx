@@ -12,7 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@verifly/ui";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { Search, MoreHorizontal, Eye, Upload, Inbox } from "lucide-react";
 import { students } from "@/lib/mock/students";
 import { universities } from "@/lib/mock/universities";
@@ -133,10 +134,10 @@ function StudentsPage() {
                       <TableCell>{s.gradeLevel}</TableCell>
                       <TableCell>{s.gpa.toFixed(2)}</TableCell>
                       <TableCell>
-                        <StatusBadge status={s.applicationStatus} />
+                        <StatusBadge {...statusBadgeProps(s.applicationStatus)} />
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={s.docStatus} />
+                        <StatusBadge {...statusBadgeProps(s.docStatus)} />
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">

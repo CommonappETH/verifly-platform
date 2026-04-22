@@ -15,7 +15,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@verifly/ui";
-import { StatusBadge } from "@/components/bank/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { useRequests } from "@/lib/use-requests";
 import {
   approveRequest, rejectRequest, markUnderReview, requestMoreInfo, addInternalNote,
@@ -75,7 +76,7 @@ function VerificationDetail() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm text-muted-foreground">{r.code}</span>
-                <StatusBadge status={r.status} />
+                <StatusBadge {...statusBadgeProps(r.status)} />
               </div>
               <h1 className="text-2xl font-bold mt-1">{r.student.fullName}</h1>
               <p className="text-sm text-muted-foreground">Guardian: {r.guardian.fullName} · Submitted {formatDate(r.submittedAt)}</p>
@@ -218,7 +219,7 @@ function VerificationDetail() {
 
                 <Separator className="my-4" />
                 <div className="text-xs space-y-1.5">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Status</span><StatusBadge status={r.status} /></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Status</span><StatusBadge {...statusBadgeProps(r.status)} /></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Assigned</span><span className="font-medium">{r.assignedTo ?? "Unassigned"}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Submitted</span><span>{formatDate(r.submittedAt)}</span></div>
                   {r.decisionAt && <div className="flex justify-between"><span className="text-muted-foreground">Decision</span><span>{formatDate(r.decisionAt)}</span></div>}

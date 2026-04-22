@@ -28,8 +28,8 @@ import {
   RadialBarChart,
   RadialBar,
 } from "recharts";
-import { KpiCard } from "@/components/admin/KpiCard";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { StatCard, StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { users } from "@/lib/admin-mock/users";
@@ -121,18 +121,18 @@ function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Students" value={totalStudents} icon={GraduationCap}
-          delta={{ value: "+8", positive: true }} accent="bg-sky-100 text-sky-700" />
-        <KpiCard label="Universities" value={totalUniversities} icon={Building2}
-          delta={{ value: "+1", positive: true }} accent="bg-indigo-100 text-indigo-700" />
-        <KpiCard label="Banks" value={totalBanks} icon={Landmark}
-          delta={{ value: "0", positive: true }} accent="bg-amber-100 text-amber-700" />
-        <KpiCard label="Applications" value={totalApplications} icon={FileStack}
-          delta={{ value: "+12", positive: true }} accent="bg-violet-100 text-violet-700" />
-        <KpiCard label="Pending Verifications" value={pendingVerifications} icon={ShieldAlert}
-          delta={{ value: "+3", positive: false }} accent="bg-orange-100 text-orange-700" />
-        <KpiCard label="Incomplete Applications" value={incompleteApplications} icon={AlertTriangle}
-          delta={{ value: "-2", positive: true }} accent="bg-red-100 text-red-700" />
+        <StatCard label="Total Students" value={totalStudents} icon={<GraduationCap className="h-5 w-5" />}
+          delta={{ value: "+8 vs last week", positive: true }} iconClassName="bg-sky-100 text-sky-700" />
+        <StatCard label="Universities" value={totalUniversities} icon={<Building2 className="h-5 w-5" />}
+          delta={{ value: "+1 vs last week", positive: true }} iconClassName="bg-indigo-100 text-indigo-700" />
+        <StatCard label="Banks" value={totalBanks} icon={<Landmark className="h-5 w-5" />}
+          delta={{ value: "0 vs last week", positive: true }} iconClassName="bg-amber-100 text-amber-700" />
+        <StatCard label="Applications" value={totalApplications} icon={<FileStack className="h-5 w-5" />}
+          delta={{ value: "+12 vs last week", positive: true }} iconClassName="bg-violet-100 text-violet-700" />
+        <StatCard label="Pending Verifications" value={pendingVerifications} icon={<ShieldAlert className="h-5 w-5" />}
+          delta={{ value: "+3 vs last week", positive: false }} iconClassName="bg-orange-100 text-orange-700" />
+        <StatCard label="Incomplete Applications" value={incompleteApplications} icon={<AlertTriangle className="h-5 w-5" />}
+          delta={{ value: "-2 vs last week", positive: true }} iconClassName="bg-red-100 text-red-700" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -230,8 +230,8 @@ function DashboardPage() {
                   <TableRow key={a.id}>
                     <TableCell className="font-medium">{getUserById(a.studentId)?.name}</TableCell>
                     <TableCell className="text-muted-foreground">{getOrgById(a.universityId)?.name}</TableCell>
-                    <TableCell><StatusBadge status={a.status} /></TableCell>
-                    <TableCell><StatusBadge status={a.documentStatus} /></TableCell>
+                    <TableCell><StatusBadge {...statusBadgeProps(a.status)} /></TableCell>
+                    <TableCell><StatusBadge {...statusBadgeProps(a.documentStatus)} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -290,7 +290,7 @@ function DashboardPage() {
                     <TableCell className="font-mono text-xs">{v.code}</TableCell>
                     <TableCell>{getUserById(v.studentId)?.name}</TableCell>
                     <TableCell className="text-right tabular-nums">${v.requestedAmount.toLocaleString()}</TableCell>
-                    <TableCell><StatusBadge status={v.status} /></TableCell>
+                    <TableCell><StatusBadge {...statusBadgeProps(v.status)} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -309,7 +309,7 @@ function DashboardPage() {
                   <p className="text-sm font-medium">{getOrgById(uniId)?.name}</p>
                   <p className="text-xs text-muted-foreground">{n} document{n === 1 ? "" : "s"} missing or overdue</p>
                 </div>
-                <StatusBadge status="missing" />
+                <StatusBadge {...statusBadgeProps("missing")} />
               </div>
             ))}
           </CardContent>

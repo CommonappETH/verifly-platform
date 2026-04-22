@@ -3,7 +3,8 @@ import { useMemo, useState } from "react";
 import { Card, CardContent } from "@verifly/ui";
 import { Tabs, TabsList, TabsTrigger } from "@verifly/ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { submissions } from "@/lib/mock/requests";
 import { students } from "@/lib/mock/students";
 import { universities } from "@/lib/mock/universities";
@@ -73,7 +74,7 @@ function SubmissionsPage() {
                   <TableCell>{s.documentLabel}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(s.uploadedAt)}</TableCell>
                   <TableCell>
-                    <StatusBadge status={s.status} />
+                    <StatusBadge {...statusBadgeProps(s.status)} />
                   </TableCell>
                   <TableCell>{uniName(s.universityId)}</TableCell>
                 </TableRow>

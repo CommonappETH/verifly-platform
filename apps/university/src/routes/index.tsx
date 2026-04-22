@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
-import { StatCard } from "@/components/StatCard";
+import { StatCard } from "@verifly/ui";
 import { APPLICANTS } from "@/lib/mock-data";
 import { STATUS_LABEL, STATUS_TONE, VERIF_TONE, VERIF_LABEL, TYPE_TONE, formatDate } from "@/lib/format";
 import { cn } from "@verifly/utils";

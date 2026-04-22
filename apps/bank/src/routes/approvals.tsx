@@ -5,7 +5,8 @@ import { Card } from "@verifly/ui";
 import { Button } from "@verifly/ui";
 import { Badge } from "@verifly/ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
-import { StatusBadge } from "@/components/bank/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { useRequests } from "@/lib/use-requests";
 import { formatCurrency, formatDate } from "@/lib/api";
 import { Download, Eye } from "lucide-react";
@@ -82,7 +83,7 @@ function ApprovalsPage() {
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.code}</TableCell>
                     <TableCell className="font-medium">{r.student.fullName}</TableCell>
-                    <TableCell><StatusBadge status={r.status} /></TableCell>
+                    <TableCell><StatusBadge {...statusBadgeProps(r.status)} /></TableCell>
                     <TableCell className="font-semibold">
                       {r.verifiedAmount ? formatCurrency(r.verifiedAmount, r.currency) : "—"}
                     </TableCell>

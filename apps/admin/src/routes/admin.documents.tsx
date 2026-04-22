@@ -3,9 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent } from "@verifly/ui";
 import { Tabs, TabsList, TabsTrigger } from "@verifly/ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { EmptyState, StatusBadge } from "@verifly/ui";
 import { DataTableToolbar } from "@/components/admin/DataTableToolbar";
-import { EmptyState } from "@/components/admin/EmptyState";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { adminDocuments } from "@/lib/admin-mock/documents";
 import { getOrgById, getUserById } from "@/lib/admin-mock/api";
 import { cn } from "@verifly/utils";
@@ -63,7 +63,7 @@ function DocumentsPage() {
             count={filtered.length}
           />
           {filtered.length === 0 ? (
-            <EmptyState />
+            <EmptyState title="No results" />
           ) : (
             <div className="rounded-md border overflow-x-auto">
               <Table>
@@ -82,9 +82,9 @@ function DocumentsPage() {
                     <TableRow key={d.id} className={cn(d.status === "overdue" && "bg-red-50/50")}>
                       <TableCell className="font-medium">{getUserById(d.studentId)?.name}</TableCell>
                       <TableCell>{d.type}</TableCell>
-                      <TableCell><StatusBadge status={d.uploadedBy} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(d.uploadedBy)} /></TableCell>
                       <TableCell className="text-muted-foreground">{getOrgById(d.universityId)?.name ?? "—"}</TableCell>
-                      <TableCell><StatusBadge status={d.status} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(d.status)} /></TableCell>
                       <TableCell className="text-muted-foreground text-xs">
                         {new Date(d.updatedAt).toLocaleDateString()}
                       </TableCell>

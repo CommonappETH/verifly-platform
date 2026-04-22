@@ -4,7 +4,8 @@ import { Card, CardContent } from "@verifly/ui";
 import { Tabs, TabsList, TabsTrigger } from "@verifly/ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { Button } from "@verifly/ui";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { Upload } from "lucide-react";
 import { documentRequests } from "@/lib/mock/requests";
 import { students } from "@/lib/mock/students";
@@ -107,7 +108,7 @@ function RequestsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={r.status} />
+                        <StatusBadge {...statusBadgeProps(r.status)} />
                       </TableCell>
                       <TableCell className="text-right">
                         <input
