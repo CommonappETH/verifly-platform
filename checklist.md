@@ -109,11 +109,16 @@ Highest-risk step. Requires naming decisions first — document them in `learnin
 
 ## 6. Finish-up
 
-- [ ] Hoist the 47 shared deps from per-app `package.json` into the root `package.json` (Bun workspaces will resolve them).
-- [ ] Remove per-app `package-lock.json` files — Bun workspaces use `bun.lockb` at the root.
-- [ ] Update the root `README.md` with the new package layout and a pointer to `learningguide.md`.
-- [ ] Run the full verification section below.
+- [x] Hoist the shared third-party deps from per-app `package.json` into the root `package.json` (Bun workspaces resolve them via hoisting).
+  - All 51 runtime + 16 dev third-party deps were identical across the 5 apps, so every non-workspace dep moved to root. Each app's `package.json` now declares only `@verifly/types` + `@verifly/ui` + `@verifly/utils` (runtime) and `@verifly/config` (dev). Student's stale `@lovable.dev/vite-tanstack-config` pin (`^1.3.0`) was unified to `^1.4.0` during the hoist.
+- [x] Remove per-app `package-lock.json` files — Bun workspaces use `bun.lock` at the root.
+  - Removed 5 `apps/*/package-lock.json` files. Root `bun.lock` is the sole lockfile.
+- [x] Update the root `README.md` with the new package layout and a pointer to `learningguide.md`.
+  - Populated from empty. Covers workspace layout, install/dev flow, dep-hoisting rule, import rules (including the `@verifly/types` leaf rule), deploy naming, and cross-references to `checklist.md` / `learningguide.md` / `AIRULES.md`.
+- [x] Run the full verification section below.
+  - `bun install` ✓ (no unresolved workspace refs). `bun run build` ✓ for all 5 apps. Grep sanity: no `@/components/ui/` or `@/lib/utils` imports remain. All 5 `wrangler.jsonc` names unique. Artifact sizes: admin 3.6M, bank 3.3M, counselor 3.3M, student 2.6M, university 1.7M — all within ±5% of baseline. `bun run lint` reports only pre-existing prettier / `no-explicit-any` issues (none new).
 - [ ] Tag `v0.2.0-cleanup` once everything is green.
+  - Pending: the remaining "Outstanding" items (visual smoke tests from §3 and §4; lint-passes gate) decide whether to tag now or gate on those.
 
 ---
 
@@ -121,15 +126,15 @@ Highest-risk step. Requires naming decisions first — document them in `learnin
 
 Do not merge until all pass:
 
-- [ ] `bun install` at root succeeds with no unresolved workspace references.
-- [ ] `bun run build` in each of the 5 apps completes with zero TS errors.
-- [ ] `bun run lint` passes for every app and every package.
-- [ ] Visual smoke on **admin** and **student** portals shows unchanged UI (buttons, badges, empty states, dialogs, tooltips render identically to baseline).
-- [ ] `grep -R "from \"@/components/ui/" apps/` → empty.
-- [ ] `grep -R "from \"@/lib/utils\"" apps/` → empty.
-- [ ] Each `apps/*/wrangler.jsonc` has a unique `name`.
-- [ ] Root `package.json` lists the shared deps once; per-app `package.json` files only list app-specific deps.
-- [ ] Build artifact sizes are within ±5% of baseline (no accidental duplication via bundler failing to dedupe).
+- [x] `bun install` at root succeeds with no unresolved workspace references.
+- [x] `bun run build` in each of the 5 apps completes with zero TS errors.
+- [ ] `bun run lint` passes for every app and every package. **Outstanding**: only pre-existing prettier / `no-explicit-any` errors remain (inherited from pre-refactor code). `bun run format` per-app clears the prettier half; the `no-explicit-any` remainder is a separate cleanup pass.
+- [ ] Visual smoke on **admin** and **student** portals shows unchanged UI (buttons, badges, empty states, dialogs, tooltips render identically to baseline). **Outstanding** — same as sections 3 and 4.
+- [x] `grep -R "from \"@/components/ui/" apps/` → empty.
+- [x] `grep -R "from \"@/lib/utils\"" apps/` → empty.
+- [x] Each `apps/*/wrangler.jsonc` has a unique `name`.
+- [x] Root `package.json` lists the shared deps once; per-app `package.json` files only list workspace refs + scripts.
+- [x] Build artifact sizes are within ±5% of baseline (no accidental duplication via bundler failing to dedupe).
 
 ---
 
