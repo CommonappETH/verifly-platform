@@ -45,6 +45,7 @@
     "@tanstack/react-router": "^1.168.0",
     "@tanstack/react-start": "^1.167.14",
     "@tanstack/router-plugin": "^1.167.10",
+    "@verifly/types": "workspace:*",
     "@verifly/ui": "workspace:*",
     "@verifly/utils": "workspace:*",
     "class-variance-authority": "^0.7.1",

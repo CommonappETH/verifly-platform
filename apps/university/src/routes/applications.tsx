@@ -12,8 +12,8 @@ export const Route = createFileRoute("/applications")({
 });
 
 const PIPELINE: ApplicationStatus[] = [
-  "draft", "submitted", "under-review", "awaiting-info",
-  "awaiting-verification", "committee-review", "conditionally-admitted", "admitted", "rejected",
+  "draft", "submitted", "under_review", "awaiting_info",
+  "awaiting_verification", "committee_review", "conditionally_admitted", "admitted", "rejected",
 ];
 
 function ApplicationsPage() {
@@ -56,7 +56,7 @@ function ApplicationsPage() {
                         </div>
                         <div className="mt-2 flex items-center justify-between">
                           <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", TYPE_TONE[a.applicantType])}>
-                            {a.applicantType === "pre-approved" ? "Pre-Approved" : "Normal"}
+                            {a.applicantType === "pre_approved" ? "Pre-Approved" : "Normal"}
                           </span>
                           <span className="text-[10px] text-muted-foreground">{formatDate(a.submissionDate)}</span>
                         </div>

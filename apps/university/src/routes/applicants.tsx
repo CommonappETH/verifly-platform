@@ -18,7 +18,7 @@ type SortKey = "gpa" | "submission" | "completeness" | "verification";
 
 function ApplicantsPage() {
   const [search, setSearch] = useState("");
-  const [type, setType] = useState<"all" | "pre-approved" | "normal">("all");
+  const [type, setType] = useState<"all" | "pre_approved" | "normal">("all");
   const [appStatus, setAppStatus] = useState<string>("all");
   const [verifStatus, setVerifStatus] = useState<string>("all");
   const [degree, setDegree] = useState<string>("all");
@@ -48,7 +48,7 @@ function ApplicantsPage() {
         case "submission": return (+new Date(a.submissionDate) - +new Date(b.submissionDate)) * dir;
         case "completeness": return (a.completeness - b.completeness) * dir;
         case "verification": {
-          const order = { "verified": 4, "in-review": 3, "pending": 2, "not-started": 1, "failed": 0 };
+          const order = { "verified": 4, "in_review": 3, "pending": 2, "not_started": 1, "failed": 0 };
           return (order[a.verification.status] - order[b.verification.status]) * dir;
         }
       }
@@ -81,7 +81,7 @@ function ApplicantsPage() {
             </div>
 
             <FilterPill label="Type" value={type} onChange={v => setType(v as never)}
-              options={[["all", "All Applicants"], ["pre-approved", "✓ Pre-Approved"], ["normal", "Normal"]]} />
+              options={[["all", "All Applicants"], ["pre_approved", "✓ Pre-Approved"], ["normal", "Normal"]]} />
             <FilterPill label="Status" value={appStatus} onChange={setAppStatus}
               options={[["all", "All Statuses"], ...Object.entries(STATUS_LABEL)]} />
             <FilterPill label="Verification" value={verifStatus} onChange={setVerifStatus}
@@ -155,7 +155,7 @@ function ApplicantsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn("text-[11px] font-medium px-2 py-1 rounded-md whitespace-nowrap", TYPE_TONE[a.applicantType])}>
-                        {a.applicantType === "pre-approved" ? "Pre-Approved" : "Normal"}
+                        {a.applicantType === "pre_approved" ? "Pre-Approved" : "Normal"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">

@@ -126,19 +126,4 @@ export function sendMessage(conversationId: string, body: string) {
   emit();
 }
 
-export function maskAccount(num: string): string {
-  const tail = num.slice(-4);
-  return `••••${tail}`;
-}
-
-export function formatCurrency(amount: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
-}
-
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
-
-export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
-}
+export { maskAccount, formatCurrency, formatDate, formatDateTime } from "@verifly/utils";

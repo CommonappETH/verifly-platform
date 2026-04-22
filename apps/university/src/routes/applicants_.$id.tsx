@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound, useParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { getApplicant } from "@/lib/mock-data";
-import type { Applicant } from "@/lib/types";
+import type { Student } from "@/lib/types";
 import { STATUS_LABEL, STATUS_TONE, VERIF_LABEL, VERIF_TONE, TYPE_TONE, DECISION_LABEL, DECISION_TONE, formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@verifly/utils";
 import { Button } from "@verifly/ui";
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/applicants_/$id")({
 
 function ApplicantDetail() {
   const { id } = useParams({ from: "/applicants_/$id" });
-  const a = getApplicant(id) as Applicant;
+  const a = getApplicant(id) as Student;
 
   return (
     <AppShell>
@@ -48,7 +48,7 @@ function ApplicantDetail() {
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 <Badge tone={STATUS_TONE[a.applicationStatus]}>{STATUS_LABEL[a.applicationStatus]}</Badge>
-                <Badge tone={TYPE_TONE[a.applicantType]}>{a.applicantType === "pre-approved" ? "✓ Pre-Approved" : "Normal Applicant"}</Badge>
+                <Badge tone={TYPE_TONE[a.applicantType]}>{a.applicantType === "pre_approved" ? "✓ Pre-Approved" : "Normal Applicant"}</Badge>
                 <Badge tone={VERIF_TONE[a.verification.status]}>Verification: {VERIF_LABEL[a.verification.status]}</Badge>
                 <Badge tone={DECISION_TONE[a.decision.status]}>Decision: {DECISION_LABEL[a.decision.status]}</Badge>
               </div>

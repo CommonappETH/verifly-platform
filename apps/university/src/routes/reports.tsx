@@ -13,11 +13,11 @@ function ReportsPage() {
   const total = APPLICANTS.length;
   const byCountry = group(APPLICANTS, a => a.country);
   const byDegree = group(APPLICANTS, a => a.intendedDegree);
-  const preApproved = APPLICANTS.filter(a => a.applicantType === "pre-approved").length;
+  const preApproved = APPLICANTS.filter(a => a.applicantType === "pre_approved").length;
   const normal = total - preApproved;
-  const admittedPre = APPLICANTS.filter(a => a.applicantType === "pre-approved" && (a.applicationStatus === "admitted" || a.applicationStatus === "conditionally-admitted")).length;
-  const admittedNorm = APPLICANTS.filter(a => a.applicantType === "normal" && (a.applicationStatus === "admitted" || a.applicationStatus === "conditionally-admitted")).length;
-  const condCount = APPLICANTS.filter(a => a.applicationStatus === "conditionally-admitted").length;
+  const admittedPre = APPLICANTS.filter(a => a.applicantType === "pre_approved" && (a.applicationStatus === "admitted" || a.applicationStatus === "conditionally_admitted")).length;
+  const admittedNorm = APPLICANTS.filter(a => a.applicantType === "normal" && (a.applicationStatus === "admitted" || a.applicationStatus === "conditionally_admitted")).length;
+  const condCount = APPLICANTS.filter(a => a.applicationStatus === "conditionally_admitted").length;
   const verifRate = Math.round(APPLICANTS.filter(a => a.verification.status === "verified").length / total * 100);
   const aidAdjusted = APPLICANTS.filter(a => a.scholarship).length;
 

@@ -1,5 +1,20 @@
-export type RequestStatus = "pending" | "under_review" | "approved" | "rejected";
-export type DocumentStatus = "uploaded" | "missing" | "reviewed";
+// Bank portal view models. Enum unions come from @verifly/types;
+// bank uses narrowed subsets via `Extract` where its domain vocabulary is narrower.
+
+import type {
+  DocumentStatus as SharedDocumentStatus,
+  VerificationStatus,
+} from "@verifly/types";
+
+export type RequestStatus = Extract<
+  VerificationStatus,
+  "pending" | "under_review" | "approved" | "rejected"
+>;
+
+export type DocumentStatus = Extract<
+  SharedDocumentStatus,
+  "uploaded" | "missing" | "reviewed"
+>;
 
 export interface Student {
   id: string;

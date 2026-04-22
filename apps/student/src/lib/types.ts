@@ -1,27 +1,12 @@
-export type VerificationStatus =
-  | "not_started"
-  | "pending_submission"
-  | "under_review"
-  | "more_info_needed"
-  | "pre_verified"
-  | "verified"
-  | "rejected";
+// Student portal view models. Enum unions come from @verifly/types.
 
-export type ApplicationStatus =
-  | "draft"
-  | "submitted"
-  | "under_review"
-  | "awaiting_verification"
-  | "conditionally_accepted"
-  | "accepted"
-  | "rejected";
+import type {
+  ApplicationStatus,
+  DocumentStatus,
+  VerificationStatus,
+} from "@verifly/types";
 
-export type DocumentStatus =
-  | "missing"
-  | "uploaded"
-  | "under_review"
-  | "needs_replacement"
-  | "approved";
+export type { ApplicationStatus, DocumentStatus, VerificationStatus };
 
 export type ScholarshipStatus = "not_applied" | "applied" | "awarded";
 
@@ -123,7 +108,9 @@ export interface Notification {
   actionUrl?: string;
 }
 
-export interface StudentProfile {
+// Renamed from `StudentProfile` → `Student` per learningguide §7.
+// Kept as a student-portal rich view of the canonical Student.
+export interface Student {
   id: string;
   firstName: string;
   lastName: string;

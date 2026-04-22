@@ -1,6 +1,6 @@
 import type {
   University, Application, StudentDocument, Scholarship,
-  Notification, StudentProfile, BankPartner, FinancialSummary,
+  Notification, Student, BankPartner, FinancialSummary,
 } from "./types";
 
 export const universities: University[] = [
@@ -371,7 +371,7 @@ export const notifications: Notification[] = [
   { id: "n-12", title: "Welcome to Verifly!", message: "Welcome aboard! Start by completing your profile, exploring universities, and understanding the financial verification process.", category: "general", date: "2025-09-01", read: true, source: "Verifly" },
 ];
 
-export const studentProfile: StudentProfile = {
+export const studentProfile: Student = {
   id: "student-1",
   firstName: "Abebe",
   lastName: "Tadesse",

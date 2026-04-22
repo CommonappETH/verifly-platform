@@ -14,15 +14,15 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const total = APPLICANTS.length;
-  const inReview = APPLICANTS.filter(a => ["under-review", "committee-review"].includes(a.applicationStatus)).length;
-  const preApproved = APPLICANTS.filter(a => a.applicantType === "pre-approved").length;
+  const inReview = APPLICANTS.filter(a => ["under_review", "committee_review"].includes(a.applicationStatus)).length;
+  const preApproved = APPLICANTS.filter(a => a.applicantType === "pre_approved").length;
   const normal = total - preApproved;
-  const condAdmit = APPLICANTS.filter(a => a.applicationStatus === "conditionally-admitted").length;
+  const condAdmit = APPLICANTS.filter(a => a.applicationStatus === "conditionally_admitted").length;
   const admitted = APPLICANTS.filter(a => a.applicationStatus === "admitted").length;
   const awaitingVerif = APPLICANTS.filter(a => a.verification.status !== "verified").length;
 
   const recent = [...APPLICANTS].sort((a, b) => +new Date(b.submissionDate) - +new Date(a.submissionDate)).slice(0, 6);
-  const needsAttention = APPLICANTS.filter(a => a.applicationStatus === "awaiting-info" || (a.priority && a.decision.status === "none")).slice(0, 5);
+  const needsAttention = APPLICANTS.filter(a => a.applicationStatus === "awaiting_info" || (a.priority && a.decision.status === "none")).slice(0, 5);
   const priority = APPLICANTS.filter(a => a.priority).slice(0, 5);
 
   const byCountry = Object.entries(APPLICANTS.reduce<Record<string, number>>((acc, a) => {
@@ -33,7 +33,7 @@ function Dashboard() {
     acc[a.applicationStatus] = (acc[a.applicationStatus] || 0) + 1; return acc;
   }, {}));
 
-  const verifBreakdown = ["verified", "in-review", "pending", "not-started"] as const;
+  const verifBreakdown = ["verified", "in_review", "pending", "not_started"] as const;
   const verifCounts = verifBreakdown.map(v => ({ v, n: APPLICANTS.filter(a => a.verification.status === v).length }));
 
   return (
@@ -77,7 +77,7 @@ function Dashboard() {
                     <div className="text-xs text-muted-foreground truncate">{a.countryFlag} {a.country} · {a.intendedDegree} {a.intendedMajor}</div>
                   </div>
                   <span className={cn("text-[11px] font-medium px-2 py-1 rounded-md", TYPE_TONE[a.applicantType])}>
-                    {a.applicantType === "pre-approved" ? "Pre-Approved" : "Normal"}
+                    {a.applicantType === "pre_approved" ? "Pre-Approved" : "Normal"}
                   </span>
                   <span className={cn("text-[11px] font-medium px-2 py-1 rounded-md", STATUS_TONE[a.applicationStatus])}>
                     {STATUS_LABEL[a.applicationStatus]}

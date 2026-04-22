@@ -26,8 +26,8 @@ const COLORS = ["#1e3a5f", "#5b3a8c", "#2d6a4f", "#9d4e15", "#7a1f3d", "#1f5673"
 
 const DEGREES: Applicant["intendedDegree"][] = ["Bachelor's", "Master's", "Master's", "PhD", "Bachelor's"];
 const STATUSES: Applicant["applicationStatus"][] = [
-  "submitted", "under-review", "awaiting-info", "awaiting-verification",
-  "committee-review", "conditionally-admitted", "admitted", "rejected", "draft", "waitlisted",
+  "submitted", "under_review", "awaiting_info", "awaiting_verification",
+  "committee_review", "conditionally_admitted", "admitted", "rejected", "draft", "waitlisted",
 ];
 
 function pick<T>(arr: T[], i: number): T { return arr[i % arr.length]; }
@@ -42,7 +42,7 @@ export const APPLICANTS: Applicant[] = NAMES.map((name, i) => {
   const verifStatus =
     isPreApproved ? "verified" :
     i % 4 === 0 ? "pending" :
-    i % 5 === 0 ? "in-review" : "not-started";
+    i % 5 === 0 ? "in_review" : "not_started";
 
   const hasScholarship = i % 3 === 1;
   const tuition = 52000;
@@ -51,7 +51,7 @@ export const APPLICANTS: Applicant[] = NAMES.map((name, i) => {
 
   const decisionStatus: Applicant["decision"]["status"] =
     status === "admitted" ? "admit" :
-    status === "conditionally-admitted" ? "conditional-admit" :
+    status === "conditionally_admitted" ? "conditional_admit" :
     status === "rejected" ? "reject" :
     status === "waitlisted" ? "waitlist" : "none";
 
@@ -70,13 +70,13 @@ export const APPLICANTS: Applicant[] = NAMES.map((name, i) => {
     gpa: Math.round((3.2 + rand(i) * 0.8) * 100) / 100,
     testScore: i % 2 === 0 ? { name: "TOEFL", value: `${95 + (i % 20)}` } : { name: "IELTS", value: `${(6 + rand(i) * 2).toFixed(1)}` },
     applicationStatus: status,
-    applicantType: isPreApproved ? "pre-approved" : "normal",
+    applicantType: isPreApproved ? "pre_approved" : "normal",
     verification: {
       verificationId: `VER-${(50000 + i * 7).toString()}`,
       amountRequested: amountReq,
       currency: "USD",
       status: verifStatus,
-      timing: isPreApproved ? "pre-application" : i % 2 === 0 ? "post-application" : "post-admission",
+      timing: isPreApproved ? "pre_application" : i % 2 === 0 ? "post_application" : "post_admission",
       partnerBank: pick(["HSBC", "Citi", "Standard Chartered", "DBS", "ICICI"], i),
       partnerBankStatus: verifStatus === "verified" ? "connected" : "pending",
       preApprovedBeforeApplying: isPreApproved,
@@ -92,9 +92,9 @@ export const APPLICANTS: Applicant[] = NAMES.map((name, i) => {
     decision: {
       status: decisionStatus,
       date: decisionStatus !== "none" ? new Date(2024, 10, 5 + i).toISOString() : undefined,
-      rationale: decisionStatus === "conditional-admit" ? "Strong academic profile; financial verification pending." : undefined,
-      followUpRequirements: decisionStatus === "conditional-admit" ? ["Complete financial verification", "Submit final transcript"] : [],
-      financialVerificationRequiredForEnrollment: decisionStatus === "conditional-admit",
+      rationale: decisionStatus === "conditional_admit" ? "Strong academic profile; financial verification pending." : undefined,
+      followUpRequirements: decisionStatus === "conditional_admit" ? ["Complete financial verification", "Submit final transcript"] : [],
+      financialVerificationRequiredForEnrollment: decisionStatus === "conditional_admit",
       reviewer: "Dr. Eleanor Pierce",
     },
     submissionDate,
@@ -107,7 +107,7 @@ export const APPLICANTS: Applicant[] = NAMES.map((name, i) => {
     documents: [
       { id: "d1", name: "Official Transcript", type: "transcript", uploaded: true, required: true },
       { id: "d2", name: "Passport Copy", type: "passport", uploaded: true, required: true },
-      { id: "d3", name: "TOEFL/IELTS Score Report", type: "test-score", uploaded: i % 4 !== 0, required: true },
+      { id: "d3", name: "TOEFL/IELTS Score Report", type: "test_score", uploaded: i % 4 !== 0, required: true },
       { id: "d4", name: "Letter of Recommendation #1", type: "recommendation", uploaded: true, required: true },
       { id: "d5", name: "Letter of Recommendation #2", type: "recommendation", uploaded: i % 3 !== 0, required: true },
       { id: "d6", name: "Financial Verification Statement", type: "financial", uploaded: isPreApproved, required: true },
@@ -138,13 +138,13 @@ export const APPLICANTS: Applicant[] = NAMES.map((name, i) => {
 
 export const MESSAGE_THREADS: MessageThread[] = APPLICANTS.slice(0, 8).map((a, i) => {
   const cat: MessageThread["category"] =
-    i % 4 === 0 ? "info-request" :
-    i % 4 === 1 ? "verification-reminder" :
-    i % 4 === 2 ? "conditional-followup" : "general";
+    i % 4 === 0 ? "info_request" :
+    i % 4 === 1 ? "verification_reminder" :
+    i % 4 === 2 ? "conditional_followup" : "general";
   const subject = {
-    "info-request": "Missing recommendation letter",
-    "verification-reminder": "Reminder: complete financial verification",
-    "conditional-followup": "Conditional admission — next steps",
+    "info_request": "Missing recommendation letter",
+    "verification_reminder": "Reminder: complete financial verification",
+    "conditional_followup": "Conditional admission — next steps",
     "general": "Welcome and program update",
   }[cat];
   return {

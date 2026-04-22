@@ -17,7 +17,7 @@ export const Route = createFileRoute("/decisions")({
 const TABS: { key: DecisionStatus | "all"; label: string; icon: React.ElementType }[] = [
   { key: "all", label: "All Decisions", icon: CheckCircle2 },
   { key: "admit", label: "Admit", icon: CheckCircle2 },
-  { key: "conditional-admit", label: "Conditional Admit", icon: AlertTriangle },
+  { key: "conditional_admit", label: "Conditional Admit", icon: AlertTriangle },
   { key: "waitlist", label: "Waitlist", icon: Clock },
   { key: "reject", label: "Reject", icon: XCircle },
   { key: "none", label: "Pending", icon: Clock },
@@ -60,7 +60,7 @@ function DecisionsPage() {
         </div>
 
         {/* Conditional admit highlight banner when on that tab */}
-        {tab === "conditional-admit" && (
+        {tab === "conditional_admit" && (
           <div className="rounded-xl border border-accent/40 bg-accent/15 p-5 mb-6 flex items-start gap-4">
             <ShieldCheck className="h-5 w-5 text-accent-foreground mt-0.5" />
             <div>
@@ -109,7 +109,7 @@ function DecisionsPage() {
                   <td className="px-4 py-3 text-muted-foreground">{formatDate(a.decision.date)}</td>
                   <td className="px-4 py-3">
                     <span className={cn("text-[11px] font-medium px-2 py-1 rounded-md", TYPE_TONE[a.applicantType])}>
-                      {a.applicantType === "pre-approved" ? "Pre-Approved" : "Normal"}
+                      {a.applicantType === "pre_approved" ? "Pre-Approved" : "Normal"}
                     </span>
                   </td>
                   <td className="px-4 py-3">

@@ -1,10 +1,26 @@
-// Domain types for the School Counselor Portal.
+// Counselor portal view models. Enum unions come from @verifly/types.
 // All entities are kept minimal & serializable so they can be swapped
 // for real API responses without component-level changes.
 
-export type DocumentStatus = "missing" | "uploaded" | "under_review" | "completed";
+import type {
+  ApplicationStatus as SharedApplicationStatus,
+  DocumentStatus as SharedDocumentStatus,
+} from "@verifly/types";
+
+export type DocumentStatus = Extract<
+  SharedDocumentStatus,
+  "missing" | "uploaded" | "under_review" | "completed"
+>;
+
+// `RequestStatus` here means "document-request lifecycle" (pending/completed/overdue).
+// It is distinct from `VerificationStatus` and remains counselor-specific.
 export type RequestStatus = "pending" | "completed" | "overdue";
-export type ApplicationStatus = "not_started" | "in_progress" | "submitted" | "complete";
+
+export type ApplicationStatus = Extract<
+  SharedApplicationStatus,
+  "not_started" | "in_progress" | "submitted" | "complete"
+>;
+
 export type DocumentType =
   | "transcript"
   | "recommendation_letter"

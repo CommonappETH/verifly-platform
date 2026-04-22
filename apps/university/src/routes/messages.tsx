@@ -16,9 +16,9 @@ export const Route = createFileRoute("/messages")({
 
 const CATEGORIES = [
   { key: "all", label: "All", icon: Inbox },
-  { key: "info-request", label: "Info Requests", icon: AlertCircle },
-  { key: "verification-reminder", label: "Verification Reminders", icon: ShieldCheck },
-  { key: "conditional-followup", label: "Conditional Follow-ups", icon: BadgeCheck },
+  { key: "info_request", label: "Info Requests", icon: AlertCircle },
+  { key: "verification_reminder", label: "Verification Reminders", icon: ShieldCheck },
+  { key: "conditional_followup", label: "Conditional Follow-ups", icon: BadgeCheck },
   { key: "general", label: "General", icon: Mail },
 ] as const;
 
