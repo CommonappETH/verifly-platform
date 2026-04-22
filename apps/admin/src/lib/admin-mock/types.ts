@@ -1,25 +1,27 @@
-// Admin portal domain types. Mirror these on the backend later.
+// Admin portal view models. Enum unions come from @verifly/types.
 
-export type UserRole = "student" | "university" | "bank" | "counselor" | "admin";
+import type {
+  ApplicantType,
+  ApplicationStatus,
+  DecisionStatus,
+  DocumentStatus,
+  UserRole,
+  VerificationStatus,
+} from "@verifly/types";
+
+export type {
+  ApplicantType,
+  ApplicationStatus,
+  DecisionStatus,
+  DocumentStatus,
+  UserRole,
+  VerificationStatus,
+};
+
 export type UserStatus = "active" | "suspended";
 
 export type OrgType = "university" | "bank" | "school";
 
-export type ApplicationStatus =
-  | "submitted"
-  | "under_review"
-  | "awaiting_verification"
-  | "conditionally_admitted"
-  | "admitted"
-  | "rejected"
-  | "missing_documents";
-
-export type ApplicantType = "pre_approved" | "normal";
-export type DecisionStatus = "pending" | "admitted" | "conditional" | "rejected";
-
-export type VerificationStatus = "pending" | "under_review" | "approved" | "rejected" | "flagged";
-
-export type DocumentStatus = "missing" | "under_review" | "completed" | "overdue";
 export type DocumentSource = "student" | "counselor";
 
 export interface AdminUser {

@@ -1,22 +1,19 @@
-// Shared domain types — designed for future backend integration.
+// University portal view models. Enum unions come from @verifly/types;
+// this module keeps only the university-specific rich shapes.
 
-export type ApplicantType = "pre-approved" | "normal";
+import type {
+  ApplicantType,
+  ApplicationStatus,
+  DecisionStatus,
+  VerificationStatus,
+} from "@verifly/types";
 
-export type ApplicationStatus =
-  | "draft"
-  | "submitted"
-  | "under-review"
-  | "awaiting-info"
-  | "awaiting-verification"
-  | "committee-review"
-  | "conditionally-admitted"
-  | "admitted"
-  | "rejected"
-  | "waitlisted";
+export type { ApplicantType, ApplicationStatus, DecisionStatus, VerificationStatus };
 
-export type VerificationStatus = "verified" | "pending" | "in-review" | "not-started" | "failed";
-export type VerificationTiming = "pre-application" | "post-application" | "post-admission";
-export type DecisionStatus = "none" | "admit" | "conditional-admit" | "waitlist" | "reject";
+export type VerificationTiming =
+  | "pre_application"
+  | "post_application"
+  | "post_admission";
 
 export interface FinancialVerification {
   verificationId: string;
@@ -48,7 +45,7 @@ export interface Essay {
 export interface Document {
   id: string;
   name: string;
-  type: "transcript" | "passport" | "test-score" | "recommendation" | "financial" | "other";
+  type: "transcript" | "passport" | "test_score" | "recommendation" | "financial" | "other";
   uploaded: boolean;
   required: boolean;
 }
@@ -65,7 +62,7 @@ export interface ReviewerNote {
   author: string;
   date: string;
   content: string;
-  tag?: "priority" | "incomplete" | "follow-up" | "general";
+  tag?: "priority" | "incomplete" | "follow_up" | "general";
 }
 
 export interface Decision {
@@ -77,7 +74,9 @@ export interface Decision {
   reviewer?: string;
 }
 
-export interface Applicant {
+// Renamed from `Applicant` → `Student` per learningguide §7.
+// Kept as a university-specific rich view of the canonical Student.
+export interface Student {
   id: string;
   applicationId: string;
   name: string;
@@ -121,7 +120,7 @@ export interface MessageThread {
   applicantId: string;
   applicantName: string;
   subject: string;
-  category: "info-request" | "verification-reminder" | "conditional-followup" | "general";
+  category: "info_request" | "verification_reminder" | "conditional_followup" | "general";
   unread: boolean;
   lastMessageAt: string;
   messages: { id: string; from: "university" | "applicant"; author: string; date: string; body: string }[];

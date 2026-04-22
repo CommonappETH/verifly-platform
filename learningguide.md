@@ -228,6 +228,60 @@ Student is an exception: `apps/student/src/components/StatusBadge.tsx` is kept a
 
 ---
 
+## 9b. `packages/types` — shared enums and entity skeletons
+
+After step 5 of the refactor, the cross-app type drift was consolidated into `@verifly/types`. This section documents the package contents and the patterns used to migrate each app.
+
+### What was done
+
+`packages/types/` exports:
+
+- Enum unions (snake_case, see §6): `ApplicationStatus`, `VerificationStatus`, `DocumentStatus`, `UserRole`, `ApplicantType`, `DecisionStatus`.
+- Entity skeletons: `User`, `Student`, `Guardian`, `Counselor`, `BankUser`, `Application`, `Verification`, `Document`, `DocumentKind`.
+
+All entity skeletons use **optional** fields for anything not part of the identity, so portal apps can consume only the shape they need without TypeScript errors from missing extensions.
+
+### Why it was done
+
+- Before §5, `ApplicationStatus` used kebab-case in university (`"under-review"`) and snake_case everywhere else. The drift had already caused at least one silent bug class (university's badge display vs. backend status strings).
+- `StudentProfile` (student), `Applicant` (university), and `Student` (bank/counselor) modeled overlapping concepts with different names; cross-portal code or future shared API clients couldn't speak one vocabulary.
+- Without a shared type package, every change to a core enum had to be made five times, and nothing prevented the values from diverging again.
+
+### How it works (simple explanation)
+
+- **Enums are canonical unions**. Each app either imports the shared enum as-is or narrows with `Extract<SharedEnum, "a" | "b">` when the app's domain vocabulary is a strict subset. No app redeclares its own version of the same enum.
+- **Entities are superset skeletons**. The canonical `Student` has every cross-app common field as optional; individual apps keep local "rich view" interfaces (e.g. university's local `Student` with `essays`, `activities`, `decision`) when their portal needs much more than the skeleton. Those local extensions live in each app's own `lib/types.ts` and are not re-exported upward.
+- **Enum values stay canonical even when fields are optional**. Optional ≠ free-form string; a field typed `ApplicationStatus | undefined` still only accepts the 16 canonical snake_case values.
+
+### Key concepts
+
+1. **Superset types with optional fields** — lets one interface serve multiple portals without forcing every portal to carry every field.
+2. **`Extract<UnionType, "value1" | "value2">`** — narrows a shared union to an app-specific subset while keeping the link to the canonical type. If the shared union ever loses a value, the narrow alias fails to compile — this is the point.
+3. **Re-export for compatibility** — each app's local `types.ts` re-exports the shared enums (`export type { ApplicationStatus } from "@verifly/types"`) so existing imports from `@/lib/types` keep working. Migration is type-compatible without rewriting every import site.
+4. **Retired alias names** — `StudentProfile` and `Applicant` are retired as *type names*. Runtime names like route segments (`/applicants`), UI strings ("Applicants"), and loader helpers (`getApplicant`) stay — they are portal vocabulary, not cross-app types.
+
+### Best practices
+
+1. **Never redeclare a shared enum locally**. If a portal needs a narrower set, use `Extract<>`; if it needs wider, the shared enum is the one that should grow.
+2. **Keep app-specific view models in the app**. If a portal's `Student` type has 30 fields that only that portal uses, it belongs in the app, not in `@verifly/types`.
+3. **Match the backend's casing**. Snake_case for enum values. Any new enum added to `@verifly/types` follows the same rule.
+4. **When widening a shared type**, audit every app's usage first. Adding a value to `ApplicationStatus` is safe; changing an existing value's spelling is a cross-app migration.
+
+### Mistakes to avoid
+
+- **Do not import entity types from another app** (`import { Applicant } from "apps/university/..."`). Cross-portal shapes belong in `@verifly/types`; everything else stays local.
+- **Do not re-introduce compatibility shims that accept both kebab-case and snake_case values**. The drift was deliberate to kill; accepting both hides new drift.
+- **Do not define a type called `StudentProfile` or `Applicant` again**. Use `Student` (canonical) or a portal-specific name that clearly reads as a view model (e.g. `ApplicantDossier`, not `Applicant`).
+- **Do not let `@verifly/utils` or `@verifly/ui` import from `apps/*`**. The import direction is one-way (apps → packages); violating it means a package can't be understood in isolation.
+
+### Formatters and `maskAccount`
+
+As part of §5, the framework-agnostic helpers (`formatDate`, `formatCurrency`, `formatDateTime`, `formatRelative`, `daysUntil`, `initials`, `maskAccount`) and the university-specific label/tone maps (`STATUS_LABEL` / `STATUS_TONE` / `VERIF_*` / `TYPE_TONE` / `DECISION_*`) moved to `@verifly/utils`. Each app's local `format.ts` / `api.ts` is now a thin re-export of `@verifly/utils`, preserving the existing `@/lib/format` and `@/lib/api` import paths.
+
+The university tone/label maps still live in `@verifly/utils` (not `@verifly/ui`) because they return raw Tailwind class strings, not React nodes. They remain keyed by canonical enums, so if `@verifly/types` adds a new `ApplicationStatus` value the map gets a `Partial<Record<>>` gap rather than a compile error — letting apps ship new status values before picking a tone for them.
+
+---
+
 ## 10. Known follow-ups
 
 Deferred on purpose; revisit once the consolidation is merged:

@@ -86,24 +86,26 @@ Each of the following needs a short design pass before moving (the per-app versi
 
 Highest-risk step. Requires naming decisions first — document them in `learningguide.md` (sections 6 and 7) before coding.
 
-- [ ] Decide and document: enum value casing (recommend **snake_case** to match the backend).
-- [ ] Decide and document: entity canonical names. Recommendation: `Student` is canonical; `StudentProfile` and `Applicant` are retired. Admissions-specific fields live on `Student` as optional properties, or in a separate `Admission` type.
-- [ ] Create `packages/types/` with:
-  - `package.json` — name `@verifly/types`, no runtime exports (types-only).
-  - `src/status.ts` — unified `ApplicationStatus`, `VerificationStatus`, `DocumentStatus`, `UserRole`.
-  - `src/user.ts` — `User`, `Student`, `Guardian`, `Counselor`, `BankUser`.
-  - `src/application.ts` — `Application` (with the superset of fields apps actually use).
-  - `src/verification.ts` — `Verification` (consolidating `VerificationRequest`, `FinancialVerification`).
-  - `src/document.ts` — `Document`, `DocumentKind`.
-  - `src/index.ts` — barrel.
-- [ ] Migrate one app at a time:
-  - [ ] university (converts `under-review` → `under_review`; expect the biggest diff)
-  - [ ] student
-  - [ ] admin (includes `apps/admin/src/lib/admin-mock/types.ts`)
-  - [ ] bank
-  - [ ] counselor
-- [ ] After each app: `bun run typecheck` + `lint` must pass before moving to the next.
-- [ ] Move the formatter helpers (`formatDate`, `formatCurrency`, `formatRelative`, `daysUntil`, `initials`, plus `STATUS_LABEL` / `STATUS_TONE` maps that depend on the unified enums) from `apps/counselor/src/lib/format.ts` and `apps/university/src/lib/format.ts` into `packages/utils/src/format.ts`. Also move `maskAccount` from `apps/bank/src/lib/api.ts` to `packages/utils/src/mask.ts`.
+- [x] Decide and document: enum value casing — **snake_case** is canonical. Documented in `learningguide.md` §6.
+- [x] Decide and document: entity canonical names — `Student` canonical; `StudentProfile` and `Applicant` retired. Documented in `learningguide.md` §7.
+- [x] Create `packages/types/` with:
+  - [x] `package.json` — name `@verifly/types`, no runtime exports (types-only).
+  - [x] `src/status.ts` — unified `ApplicationStatus`, `VerificationStatus`, `DocumentStatus`, `UserRole` (plus `ApplicantType`, `DecisionStatus`). All values snake_case.
+  - [x] `src/user.ts` — `User`, `Student`, `Guardian`, `Counselor`, `BankUser`. Canonical `Student` has cross-app common fields; app-specific rich fields stay in each app's local `types.ts`.
+  - [x] `src/application.ts` — `Application` with a superset of fields; all non-identity fields optional so portal apps consume only what they need.
+  - [x] `src/verification.ts` — `Verification` (superset over `VerificationRequest` + admin `Verification` + `FinancialVerification`).
+  - [x] `src/document.ts` — `Document`, `DocumentKind` (snake_case kinds).
+  - [x] `src/index.ts` — barrel.
+- [x] Migrate one app at a time:
+  - [x] university (converted `"under-review"` → `"under_review"` and 16 other kebab→snake tokens across 11 files via a scoped sed pass; renamed type `Applicant` → `Student` in `lib/types.ts` and call sites). Routes/UI strings/function names (`applicants_.$id`, `getApplicant`, "Applicants") intentionally kept — only the retired *type* name was renamed.
+  - [x] student (renamed type `StudentProfile` → `Student`; re-exported shared enums). Kept rich optional fields local since they are student-portal-specific.
+  - [x] admin (re-exported shared enums from `apps/admin/src/lib/admin-mock/types.ts`; admin's local unions are subsets of the shared unified unions so no value rewrites were needed).
+  - [x] bank (used `Extract<VerificationStatus, ...>` and `Extract<DocumentStatus, ...>` to keep bank's narrower `RequestStatus` / `DocumentStatus` aliases tied to shared enums. Kept bank's local narrow `Student`/`Guardian` interfaces since widening them to shared-optional fields would break `r.student.fullName` call sites).
+  - [x] counselor (same `Extract<>` pattern; counselor's `RequestStatus` = `"pending" | "completed" | "overdue"` kept local since those values aren't in shared `VerificationStatus` — this is a distinct "document-request lifecycle" concept).
+- [x] After each app: `bun run build` + `lint` pass. All 5 apps build ✓; lint shows only pre-existing prettier / `no-explicit-any` issues (no new errors).
+- [x] Move the formatter helpers (`formatDate`, `formatCurrency`, `formatDateTime`, `formatRelative`, `daysUntil`, `initials`, plus `STATUS_LABEL` / `STATUS_TONE` / `VERIF_LABEL` / `VERIF_TONE` / `TYPE_TONE` / `DECISION_LABEL` / `DECISION_TONE` maps) into `packages/utils/src/format.ts`. Also moved `maskAccount` from `apps/bank/src/lib/api.ts` into `packages/utils/src/mask.ts`. Each app's local `format.ts` / `api.ts` is now a thin re-export of `@verifly/utils`, so existing call sites continue to work without rewrites.
+  - **Note**: `@verifly/utils` now has `@verifly/types` as a `devDependency` so the tone/label maps can be typed by the unified enum unions.
+  - **Deviation**: counselor's `formatDate` previously used `toLocaleDateString(undefined, ...)` (browser locale); unified version uses `"en-US"` to match bank/university. Visual difference only for non-US browser locales; acceptable per the unification intent.
 
 ## 6. Finish-up
 

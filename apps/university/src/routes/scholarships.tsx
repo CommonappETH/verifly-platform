@@ -62,7 +62,7 @@ function ScholarshipsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn("text-[11px] font-medium px-2 py-1 rounded-md", TYPE_TONE[a.applicantType])}>
-                      {a.applicantType === "pre-approved" ? "Pre-Approved" : "Normal"}
+                      {a.applicantType === "pre_approved" ? "Pre-Approved" : "Normal"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono">{formatCurrency(tuition)}</td>
