@@ -282,6 +282,52 @@ The university tone/label maps still live in `@verifly/utils` (not `@verifly/ui`
 
 ---
 
+## 9c. Dep hoisting — one version, declared once
+
+Step 6 of the refactor moved every shared third-party dependency from the five `apps/*/package.json` files into the root `package.json`. After the hoist, each app's manifest only declares workspace refs and scripts.
+
+### What was done
+
+- 51 runtime deps + 16 devDeps (identical across all 5 apps) were consolidated into the root `package.json`. Examples: `react`, `@radix-ui/*`, `@tanstack/*`, `lucide-react`, `zod`, `tailwindcss`, `vite`, `eslint`, `prettier`.
+- Each `apps/*/package.json` was reduced to: `name`, `private`, `sideEffects`, `type`, `scripts`, and four workspace refs (`@verifly/types`, `@verifly/ui`, `@verifly/utils` in `dependencies`; `@verifly/config` in `devDependencies`). That's it.
+- Five per-app `package-lock.json` files were deleted; the root `bun.lock` is now the sole lockfile.
+- Student's stale `@lovable.dev/vite-tanstack-config` pin (`^1.3.0`) was unified to `^1.4.0` during the hoist — the only version drift across apps.
+- Populated the root `README.md` (previously empty) with workspace layout, install/dev flow, import rules, and cross-references.
+
+### Why it was done
+
+- **One version of truth**. Before the hoist, bumping React (or any shared dep) meant editing five files; a mistake in one meant silent version drift.
+- **Faster `bun install`**. Bun workspaces hoist shared deps to root `node_modules/`; deduping is free when every app points at the same version range.
+- **Smaller diffs for upgrades**. Future `npm-check-updates` or Renovate runs touch only the root manifest.
+
+### How the hoist works
+
+Bun (and npm) workspaces traverse all `workspaces` entries and build a unified dep graph. A dep declared in the root `package.json` is physically installed at `<root>/node_modules/<dep>`. When an app file imports `react`, Node's module resolution walks up from `apps/admin/src/...` → `apps/admin/node_modules/` (empty) → `<root>/node_modules/react/` and resolves it. This is the standard hoisting pattern — no special config.
+
+Workspace package deps (`@verifly/*`) stay per-app because they're symlinked, not hoisted. Removing them from the app manifest would make the link invisible to Bun's resolver.
+
+### Key concepts
+
+- **Hoisting**: Bun's term for "install this dep once at the top of the workspace tree". The app's `node_modules/` is empty of hoisted deps; resolution walks up.
+- **Declared vs resolved**: declaring a dep in an app's `package.json` is a *contract* (the app needs this dep); resolving it is a *filesystem lookup* (Node finds the file). Hoisting separates the two.
+- **Phantom deps risk**: an app can accidentally import a dep that's only declared in a sibling app, because hoisting makes it resolvable. After this refactor, every dep an app can reach is declared at the root — so there are no phantom deps, only declared-at-root deps.
+
+### Best practices
+
+1. When adding a third-party dep that 2+ apps will use, add it to root `package.json` — not to each app.
+2. When a dep is genuinely app-specific (e.g., a portal-only integration SDK), declare it in that app's `package.json`. Do not pre-emptively hoist.
+3. Bump dep versions at the root. After a bump, run `bun install` once and build all five apps.
+4. The workspace packages (`packages/ui`, `packages/utils`, `packages/types`, `packages/config`) still declare their own runtime deps — they are independent units and ship their own dep graph.
+
+### Mistakes to avoid
+
+- **Do not re-add hoisted deps to `apps/*/package.json`** to "make imports explicit". Declaring the same dep in two places creates version-drift risk for zero clarity benefit.
+- **Do not delete workspace refs from an app's `package.json`** thinking they'll be hoisted. `workspace:*` refs are the only way Bun knows to symlink the package; removing them breaks the build.
+- **Do not hoist deps that only `packages/ui` (or another package) uses.** The package manages its own dep graph; apps get those transitively via the workspace link.
+- **Do not keep per-app `package-lock.json` files alongside `bun.lock`.** Two lockfile formats disagreeing about resolved versions is a guaranteed source of "works on my machine" bugs.
+
+---
+
 ## 10. Known follow-ups
 
 Deferred on purpose; revisit once the consolidation is merged:
