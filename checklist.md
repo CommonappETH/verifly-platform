@@ -72,12 +72,15 @@ Package scope assumed: `@verifly/*`. If the team picks a different scope, substi
 
 Each of the following needs a short design pass before moving (the per-app versions diverge slightly):
 
-- [ ] `StatusBadge` — unify admin, bank, counselor, student versions. Drive by a union-type `status` prop and a `tone` map; no app-specific status strings inside the component.
-- [ ] `EmptyState` — unify admin and student versions. API: `title`, `description?`, `icon?`, `action?` (ReactNode slot).
-- [ ] `StatCard` (rename `KpiCard` → `StatCard` for consistency) — unify admin (`KpiCard`) and university (`StatCard`). API: `label`, `value`, `delta?`, `icon?`.
-- [ ] Move to `packages/ui/src/components/composed/`; re-export from `@verifly/ui`.
-- [ ] Replace per-app imports; delete per-app copies.
-- [ ] Verify: build + lint + visual smoke on admin and student (they use the most composites).
+- [x] `StatusBadge` — unified to a tone-driven API `{ label, tone, size?, className? }`. Lives at `packages/ui/src/components/composed/status-badge.tsx`. No app-specific status strings inside the component; each app owns the status→tone mapping.
+  - admin/bank/counselor: added `apps/{admin,bank,counselor}/src/lib/status-badge.ts` with a `statusBadgeProps(status)` helper; call sites use `<StatusBadge {...statusBadgeProps(s)} />`.
+  - **Deviation**: `apps/student/src/components/StatusBadge.tsx` was kept as a ~30-line adapter that translates student's existing `label`+`variant`+`size` API to the shared `label`+`tone`+`size` API (maps `muted` → `neutral`). Student's call sites (30+) drive `variant` from inline data maps; rewriting them all would have been a much larger, riskier diff for no structural win. The duplicate *implementation* is gone — only the API translation remains per-app.
+- [x] `EmptyState` — API `{ title, description?, icon?, action?, className? }`. Lives at `packages/ui/src/components/composed/empty-state.tsx`. Admin's `hint` prop was renamed to `description`; admin's bare `<EmptyState />` calls now pass `title="No results"` explicitly. Student's copy was unused and was deleted.
+- [x] `StatCard` (canonical name; `KpiCard` is retired) — unified API `{ label, value, icon?, delta?, hint?, tone?, iconClassName?, className? }`. Supports admin's colored-icon-box pattern (via `iconClassName`) and university's toned-card pattern (via `tone`). Admin's `<KpiCard icon={IconComponent} />` call sites were rewritten to pass JSX `icon={<IconComponent className="h-5 w-5" />}`. Admin's `"+8"` deltas were extended to `"+8 vs last week"` at the call site since the shared component no longer hardcodes that suffix. Bank and student each had an *inline* `KpiCard`/`StatCard` function defined in a route file — both were deleted and replaced with imports from `@verifly/ui`.
+- [x] Moved to `packages/ui/src/components/composed/`; re-exported from `@verifly/ui`.
+- [x] Replaced per-app imports; deleted per-app copies (`apps/admin/src/components/admin/{StatusBadge,EmptyState,KpiCard}.tsx`, `apps/bank/src/components/bank/StatusBadge.tsx`, `apps/counselor/src/components/StatusBadge.tsx`, `apps/student/src/components/EmptyState.tsx`, `apps/university/src/components/StatCard.tsx`). Student's `StatusBadge.tsx` retained as the adapter noted above.
+- [x] Build ✓ for all 5 apps. Lint reports only pre-existing errors — admin 290 (baseline 291, one fewer because deleted files took prettier errors with them); no new errors introduced.
+- [ ] **Outstanding**: run admin and student portals in a browser and visually smoke-test StatusBadge, EmptyState, StatCard. Not done yet.
 
 ## 5. Stand up `packages/types`
 

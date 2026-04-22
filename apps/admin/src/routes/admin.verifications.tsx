@@ -31,10 +31,9 @@ import {
 } from "@verifly/ui";
 import { Button } from "@verifly/ui";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@verifly/ui";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { EmptyState, StatCard, StatusBadge } from "@verifly/ui";
 import { DataTableToolbar } from "@/components/admin/DataTableToolbar";
-import { EmptyState } from "@/components/admin/EmptyState";
-import { KpiCard } from "@/components/admin/KpiCard";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { FlagIssueDialog } from "@/components/admin/FlagIssueDialog";
 import { verifications } from "@/lib/admin-mock/verifications";
 import type { Verification } from "@/lib/admin-mock/types";
@@ -94,10 +93,10 @@ function VerificationsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Pending" value={pendingCount} icon={Clock} accent="bg-amber-100 text-amber-700" />
-        <KpiCard label="Avg. processing" value={`${avgTime}d`} icon={Timer} accent="bg-blue-100 text-blue-700" />
-        <KpiCard label="Approval rate" value={`${approvalRate}%`} icon={TrendingUp} accent="bg-emerald-100 text-emerald-700" />
-        <KpiCard label="High-value (>$100k)" value={highValueCount} icon={DollarSign} accent="bg-violet-100 text-violet-700" />
+        <StatCard label="Pending" value={pendingCount} icon={<Clock className="h-5 w-5" />} iconClassName="bg-amber-100 text-amber-700" />
+        <StatCard label="Avg. processing" value={`${avgTime}d`} icon={<Timer className="h-5 w-5" />} iconClassName="bg-blue-100 text-blue-700" />
+        <StatCard label="Approval rate" value={`${approvalRate}%`} icon={<TrendingUp className="h-5 w-5" />} iconClassName="bg-emerald-100 text-emerald-700" />
+        <StatCard label="High-value (>$100k)" value={highValueCount} icon={<DollarSign className="h-5 w-5" />} iconClassName="bg-violet-100 text-violet-700" />
       </div>
 
       <Card>
@@ -125,7 +124,7 @@ function VerificationsPage() {
           </DataTableToolbar>
 
           {filtered.length === 0 ? (
-            <EmptyState />
+            <EmptyState title="No results" />
           ) : (
             <div className="rounded-md border overflow-x-auto">
               <Table>
@@ -178,7 +177,7 @@ function VerificationsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
-                            <StatusBadge status={v.status} />
+                            <StatusBadge {...statusBadgeProps(v.status)} />
                             {stalled && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -234,7 +233,7 @@ function VerificationsPage() {
                 </SheetDescription>
               </SheetHeader>
               <div className="mt-6 space-y-5 text-sm">
-                <StatusBadge status={open.status} />
+                <StatusBadge {...statusBadgeProps(open.status)} />
                 <dl className="grid grid-cols-2 gap-2 rounded-md border p-3">
                   <dt className="text-xs text-muted-foreground">Bank</dt>
                   <dd>{getOrgById(open.bankId)?.name}</dd>

@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
 import { Button } from "@verifly/ui";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { Users, FileClock, FileCheck2, Inbox, AlertTriangle, Upload, ArrowRight } from "lucide-react";
 import { students, documents } from "@/lib/mock/students";
 import { documentRequests, submissions } from "@/lib/mock/requests";
@@ -91,7 +92,7 @@ function Dashboard() {
                   </div>
                   <div className="text-xs text-muted-foreground">{formatRelative(s.uploadedAt)}</div>
                 </div>
-                <StatusBadge status={s.status} />
+                <StatusBadge {...statusBadgeProps(s.status)} />
               </div>
             ))}
           </CardContent>
@@ -113,7 +114,7 @@ function Dashboard() {
                     {studentName(r.studentId)} · {uniName(r.universityId)} · due {formatDate(r.deadline)}
                   </div>
                 </div>
-                <StatusBadge status={r.status} />
+                <StatusBadge {...statusBadgeProps(r.status)} />
                 <Button size="sm" variant="outline" className="h-8 gap-1">
                   <Upload className="h-3.5 w-3.5" /> Upload
                 </Button>
@@ -136,7 +137,7 @@ function Dashboard() {
                     {formatRelative(s.uploadedAt)}
                   </div>
                 </div>
-                <StatusBadge status={s.status} />
+                <StatusBadge {...statusBadgeProps(s.status)} />
               </div>
             ))}
           </CardContent>

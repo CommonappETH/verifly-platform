@@ -6,7 +6,8 @@ import { Button } from "@verifly/ui";
 import { Textarea } from "@verifly/ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@verifly/ui";
 import { Badge } from "@verifly/ui";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { toast } from "sonner";
 import { students, documents } from "@/lib/mock/students";
 import { documentRequests, notes as notesStore } from "@/lib/mock/requests";
@@ -120,7 +121,7 @@ function StudentDetail() {
               <span>{student.email}</span>
             </div>
           </div>
-          <StatusBadge status={student.applicationStatus} />
+          <StatusBadge {...statusBadgeProps(student.applicationStatus)} />
         </CardContent>
       </Card>
 
@@ -173,7 +174,7 @@ function StudentDetail() {
                   </div>
                 </div>
               </div>
-              <StatusBadge status={doc.status} />
+              <StatusBadge {...statusBadgeProps(doc.status)} />
               <div className="flex gap-2">
                 <input
                   ref={(el) => {
@@ -237,7 +238,7 @@ function StudentDetail() {
                     <TableCell>{universities.find((u) => u.id === r.universityId)?.shortName ?? "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(r.deadline)}</TableCell>
                     <TableCell>
-                      <StatusBadge status={r.status} />
+                      <StatusBadge {...statusBadgeProps(r.status)} />
                     </TableCell>
                     <TableCell className="text-right">
                       <input

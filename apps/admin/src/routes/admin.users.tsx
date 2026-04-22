@@ -26,9 +26,9 @@ import {
 } from "@verifly/ui";
 import { Button } from "@verifly/ui";
 import { Avatar, AvatarFallback } from "@verifly/ui";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { EmptyState, StatusBadge } from "@verifly/ui";
 import { DataTableToolbar } from "@/components/admin/DataTableToolbar";
-import { EmptyState } from "@/components/admin/EmptyState";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { users as initialUsers } from "@/lib/admin-mock/users";
 import type { AdminUser } from "@/lib/admin-mock/types";
 import { getOrgById } from "@/lib/admin-mock/api";
@@ -122,7 +122,7 @@ function UsersPage() {
           </DataTableToolbar>
 
           {filtered.length === 0 ? (
-            <EmptyState hint="Try widening your filters." />
+            <EmptyState title="No results" description="Try widening your filters." />
           ) : (
             <div className="rounded-md border">
               <Table>
@@ -150,12 +150,12 @@ function UsersPage() {
                           <span className="font-medium">{u.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell><StatusBadge status={u.role} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(u.role)} /></TableCell>
                       <TableCell className="text-muted-foreground">
                         {getOrgById(u.organizationId)?.name ?? "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                      <TableCell><StatusBadge status={u.status} /></TableCell>
+                      <TableCell><StatusBadge {...statusBadgeProps(u.status)} /></TableCell>
                       <TableCell className="text-muted-foreground">{relative(u.lastActive)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -197,8 +197,8 @@ function UsersPage() {
               </SheetHeader>
               <div className="mt-6 space-y-4 text-sm">
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={openUser.role} />
-                  <StatusBadge status={openUser.status} />
+                  <StatusBadge {...statusBadgeProps(openUser.role)} />
+                  <StatusBadge {...statusBadgeProps(openUser.status)} />
                 </div>
                 <dl className="grid grid-cols-3 gap-2 rounded-md border p-3">
                   <dt className="text-xs text-muted-foreground">Organization</dt>

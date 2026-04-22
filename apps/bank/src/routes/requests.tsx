@@ -5,7 +5,8 @@ import { Card } from "@verifly/ui";
 import { Input } from "@verifly/ui";
 import { Button } from "@verifly/ui";
 import { Badge } from "@verifly/ui";
-import { StatusBadge } from "@/components/bank/StatusBadge";
+import { StatusBadge } from "@verifly/ui";
+import { statusBadgeProps } from "@/lib/status-badge";
 import { useRequests } from "@/lib/use-requests";
 import { formatCurrency, formatDate, maskAccount, markUnderReview } from "@/lib/api";
 import { Search, Eye, PlayCircle, ArrowUpDown } from "lucide-react";
@@ -133,7 +134,7 @@ function RequestsPage() {
                   <TableCell>{r.guardian.fullName}</TableCell>
                   <TableCell className="font-mono text-xs">{maskAccount(r.account.accountNumber)}</TableCell>
                   <TableCell className="font-semibold">{formatCurrency(r.requestedAmount)}</TableCell>
-                  <TableCell><StatusBadge status={r.status} /></TableCell>
+                  <TableCell><StatusBadge {...statusBadgeProps(r.status)} /></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(r.submittedAt)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

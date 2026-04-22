@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
+import { Card, CardContent, CardHeader, CardTitle, StatCard } from "@verifly/ui";
 import { Button } from "@verifly/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
@@ -53,10 +53,10 @@ function DashboardHome() {
 
       {/* Stats grid */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={<FileText className="h-5 w-5 text-primary" />} label="Active Applications" value={activeApps.length.toString()} sub={`${applications.length} total`} />
-        <StatCard icon={<Shield className="h-5 w-5 text-success" />} label="Verification" value={verStatus.label} sub="" badge={verStatus.color as any} />
-        <StatCard icon={<GraduationCap className="h-5 w-5 text-info" />} label="Scholarships" value={`$${financialSummary.estimatedScholarships.toLocaleString()}`} sub="estimated" />
-        <StatCard icon={<FolderOpen className="h-5 w-5 text-warning" />} label="Documents" value={`${docsMissing.length} missing`} sub={`${documents.length} total`} />
+        <StatCard icon={<FileText className="h-5 w-5 text-primary" />} label="Active Applications" value={activeApps.length.toString()} hint={`${applications.length} total`} />
+        <StatCard icon={<Shield className="h-5 w-5 text-success" />} label="Verification" value={verStatus.label} />
+        <StatCard icon={<GraduationCap className="h-5 w-5 text-info" />} label="Scholarships" value={`$${financialSummary.estimatedScholarships.toLocaleString()}`} hint="estimated" />
+        <StatCard icon={<FolderOpen className="h-5 w-5 text-warning" />} label="Documents" value={`${docsMissing.length} missing`} hint={`${documents.length} total`} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -185,23 +185,6 @@ function DashboardHome() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function StatCard({ icon, label, value, sub, badge }: { icon: React.ReactNode; label: string; value: string; sub: string; badge?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">{icon}</div>
-          <div>
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-lg font-semibold">{value}</p>
-            {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
