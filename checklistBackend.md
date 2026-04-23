@@ -33,21 +33,21 @@ The original v1 checklist (Cloudflare Workers) completed Phase 0 and Phase 1 on 
 
 ## Phase 0 — Pre-flight & reset
 
-- [ ] Create a work branch from `main`: `git checkout -b backend/phase-0-v2-reset`.
-- [ ] Record baseline: `bun install` at root succeeds; all 5 apps still build (`cd apps/<x> && bun run build` each).
-- [ ] Delete `apps/api/wrangler.jsonc` — Cloudflare-only, no replacement needed.
-- [ ] Rewrite `apps/api/package.json`:
+- [x] Create a work branch from `main`: `git checkout -b backend/phase-0-v2-reset`.
+- [x] Record baseline: `bun install` at root succeeds; all 5 apps still build (`cd apps/<x> && bun run build` each).
+- [x] Delete `apps/api/wrangler.jsonc` — Cloudflare-only, no replacement needed.
+- [x] Rewrite `apps/api/package.json`:
   - Name: `@verifly/api`.
   - Scripts: `dev` (`bun run --watch src/server.ts`), `start` (`bun run src/server.ts`), `build` (`bun build src/server.ts --outdir=dist --target=bun`), `typecheck`, `lint`, `test`.
   - Runtime deps: `hono`, `drizzle-orm`, `zod`, `@noble/hashes` (argon2id), `nanoid`.
   - Dev deps: `@types/bun`, `@verifly/config`, `drizzle-kit`, `typescript`, `vitest`.
   - Remove: `wrangler`, `@cloudflare/workers-types`, `@cloudflare/vitest-pool-workers`, `better-sqlite3` (not needed — `bun:sqlite` is built in).
-- [ ] Rewrite `apps/api/tsconfig.json` extending `@verifly/config/tsconfig.base.json`, with `types: ["@types/bun"]`, `lib: ["ES2022"]` (no DOM), `paths: { "@/*": ["./src/*"] }`.
-- [ ] Document the stack pivot in `learningguide.md` §13 (why local-first, SQLite ∩ Postgres discipline, AWS path preserved via ports).
-- [ ] Decide and document the local base URL: `http://localhost:8787` (dev). AWS URLs deferred to Phase 15.
-- [ ] Decide and document (in §13) the chosen AWS compute target for Phase 15: **default Lambda + API Gateway via `hono/aws-lambda`**, with Fargate as the fallback if a route ever exceeds Lambda's 15-minute limit or 6 MB payload cap.
-- [ ] Decide and document the DB parity strategy: SQLite via `bun:sqlite` primary; add a parallel "Postgres via Docker" track in Phase 14 for pre-migration testing.
-- [ ] Verify: root `bun install` is clean after the rewrites; no `wrangler` / `@cloudflare/*` appears in `bun.lock` anymore (`grep -E "wrangler|@cloudflare" bun.lock | head`).
+- [x] Rewrite `apps/api/tsconfig.json` extending `@verifly/config/tsconfig.base.json`, with `types: ["@types/bun"]`, `lib: ["ES2022"]` (no DOM), `paths: { "@/*": ["./src/*"] }`.
+- [x] Document the stack pivot in `learningguide.md` §13 (why local-first, SQLite ∩ Postgres discipline, AWS path preserved via ports).
+- [x] Decide and document the local base URL: `http://localhost:8787` (dev). AWS URLs deferred to Phase 15.
+- [x] Decide and document (in §13) the chosen AWS compute target for Phase 15: **default Lambda + API Gateway via `hono/aws-lambda`**, with Fargate as the fallback if a route ever exceeds Lambda's 15-minute limit or 6 MB payload cap.
+- [x] Decide and document the DB parity strategy: SQLite via `bun:sqlite` primary; add a parallel "Postgres via Docker" track in Phase 14 for pre-migration testing.
+- [x] Verify: root `bun install` is clean after the rewrites; no `wrangler` / `@cloudflare/*` appears in `bun.lock` anymore (`grep -E "wrangler|@cloudflare" bun.lock | head`). — **Partial:** `apps/api` direct deps are clean; `bun.lock` still carries `@cloudflare/vite-plugin` + transitive `wrangler` pulled by the 5 frontends' deploy stack. Backend-scope check satisfied; frontend retargeting tracked as Phase 15.4.
 - [ ] Commit: `refactor(api): reset scaffold from Cloudflare to local Bun + Hono`.
 
 ## Phase 1 — Rescaffold `apps/api` (Bun + Hono)
@@ -462,6 +462,30 @@ No deploys happen here. The goal is to make Phase 15's follow-up (the actual AWS
 - [ ] Sessions: session TTL behavior verified against DynamoDB TTL semantics (eventual, ~48 h skew acceptable).
 - [ ] Cron: `apps/api/src/cron.ts` jobs are individually invocable (`bun run cron:once <job-name>`) so EventBridge can target one per rule.
 - [ ] Commit: `chore(api): AWS migration prep (adapter skeleton, parity gates)`.
+
+### 15.4 — Frontend retargeting (off Cloudflare)
+
+All 5 frontends (`apps/admin`, `apps/bank`, `apps/counselor`, `apps/student`, `apps/university`) still build as Cloudflare Workers via `@cloudflare/vite-plugin` and each app's `wrangler.jsonc`. They must be retargeted before the AWS deploy so the whole stack lives in one cloud.
+
+Context (from v2 pivot, 2026-04-23): the `@lovable.dev/vite-tanstack-config` preset each frontend uses already supports `cloudflare: false` as an escape hatch and forwards `tanstackStart` options straight through to TanStack Start's Nitro-style presets. Retarget is config-level, not a React rewrite.
+
+- [ ] Audit each app for TanStack Start **server-function usage**: `grep -R "createServerFn\|useServerFn" apps/<name>/src`. If empty in all 5 apps → pick `static` (SPA) target. If any app uses server functions → pick `node-server` or `aws-lambda` for that app.
+- [ ] Per-app, update `apps/<name>/vite.config.ts` to:
+  ```ts
+  export default defineConfig({
+    cloudflare: false,
+    tanstackStart: { target: "<chosen-target>" },
+  });
+  ```
+- [ ] Per-app, delete `apps/<name>/wrangler.jsonc`.
+- [ ] Remove `@cloudflare/vite-plugin` from the root `package.json` once all 5 apps are off Cloudflare; re-run `bun install` and verify `grep -E "wrangler|@cloudflare" bun.lock` now returns nothing.
+- [ ] Verify per app: `cd apps/<name> && bun run build` succeeds under the new target; `bun run dev` still works locally.
+- [ ] Document chosen target(s) in `learningguide.md` and pick the AWS deploy shape:
+  - **If `static` (SPA) for all apps** → S3 + CloudFront (one bucket + one distribution per portal, or a single distribution with path-based routing).
+  - **If `node-server` / `bun` (SSR)** → Fargate service behind an ALB, one task definition per app.
+  - **If `aws-lambda`** → Lambda@Edge or standard Lambda behind CloudFront, one function per app.
+- [ ] Confirm cookie-domain compatibility with the backend: the frontends' new hostnames must share the parent domain with the API so the `sid` cookie's `Domain=.verifly.<domain>` still covers both.
+- [ ] Commit: `refactor(apps): retarget frontends off Cloudflare Workers`.
 
 ## Phase 16 — End-to-end verification
 
