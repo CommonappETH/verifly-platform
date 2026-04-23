@@ -336,3 +336,63 @@ Deferred on purpose; revisit once the consolidation is merged:
 - **`@verifly/mocks`** — mock fixtures (`apps/admin/src/lib/admin-mock/`, `apps/bank/src/lib/mock-data.ts`, etc.) are currently per-app. If we end up wanting consistent mock personas across portals for dev/testing, extract into a shared package.
 - **Shared layout primitives** — `AppShell`, `AppLayout`, `AppSidebar`, `TopBar` are currently per-app because they're tied to app-specific routes. If a common layout skeleton emerges (header slot + sidebar slot + content), consider a headless `AppShell` in `@verifly/ui` with per-app route configs injected as props.
 - **`airules.md` and `namingconventions.md`** — currently empty. Populate them if/when the team wants a shorter contributor-facing summary of the conventions in this guide.
+
+---
+
+## 11. Backend Phase 0 — Pre-flight (2026-04-22)
+
+Branch: `backend/phase-0-bootstrap`. Start of the `apps/api` build-out per `checklistBackend.md`.
+
+### What
+
+- Cut work branch from `main`.
+- Verified baseline: `bun install` clean at root (988 packages); all 5 frontend apps (`admin`, `bank`, `counselor`, `student`, `university`) build cleanly with `bun run build`.
+- Locked in three pre-flight decisions (below).
+
+### Why
+
+Phase 0 exists to guarantee we start the backend on a known-green tree and with irreversible infra choices (Cloudflare account topology, domain scheme) already made. Changing account topology mid-build means re-provisioning D1/R2/KV under new IDs; changing the domain means re-issuing cookies and CORS. Decide once, cheaply, before code.
+
+### How — decisions recorded
+
+**Wrangler usage.** Use `bunx wrangler` everywhere (no global install). Keeps the CLI version pinned in `apps/api/devDependencies` so every machine and CI runner uses the same Wrangler, avoiding drift between local dev and deploy.
+
+**Cloudflare account topology.** One Cloudflare account, two Worker environments: `dev` and `prod`, declared inside a single `apps/api/wrangler.jsonc`. Worker names: `verifly-api-dev` (default) and `verifly-api-prod` (`env.prod`). Rationale: one billing surface, one DNS zone, one secrets store; environments separate data (distinct D1 DBs, R2 buckets, KV namespaces) without doubling account admin. Revisit only if prod isolation becomes a compliance requirement.
+
+**API URL scheme.** `https://api.verifly.<domain>` (prod) and `https://api-dev.verifly.<domain>` (dev). Keeps the auth cookie `Domain=.verifly.<domain>` able to cover both the 5 portal subdomains and the API without cross-site cookie gymnastics.
+
+### Open items (blocking Phase 1 readiness, not Phase 0 code)
+
+- `wrangler login` — user runs interactively to confirm the Cloudflare account that owns the 5 existing frontend Workers.
+- DNS/zone ownership for the final `verifly.<domain>` — required before Phase 11 wires CORS + custom domain. **Deferred (2026-04-22):** proceeding against `*.workers.dev`; Phase 11 is blocked until DNS is sorted.
+
+---
+
+## 12. Backend Phase 1 — Scaffold `apps/api` (2026-04-22)
+
+### What
+
+New workspace package `@verifly/api` added at `apps/api/`. Minimal Hono worker exposing `GET /health`, wired to `wrangler dev` on port 8787. Verified: typecheck clean, local boot returns `{"ok":true,"service":"verifly-api","version":"0.0.0"}`.
+
+Files created:
+
+- `apps/api/package.json` — runtime deps `hono`, `drizzle-orm`, `zod`, `@noble/hashes`, `nanoid`; dev deps `wrangler`, `drizzle-kit`, `@cloudflare/workers-types`, `@types/bun`, `typescript`, `vitest`, `@cloudflare/vitest-pool-workers`, `@verifly/config`.
+- `apps/api/tsconfig.json` — extends `@verifly/config/tsconfig.base.json`, overrides `lib` to `["ES2022"]` and `types` to `["@cloudflare/workers-types", "@types/bun"]` to drop the DOM types the frontend config ships with.
+- `apps/api/wrangler.jsonc` — worker name `verifly-api-dev` at top, `env.prod.name = "verifly-api-prod"`, `compatibility_date: "2026-04-22"`, `compatibility_flags: ["nodejs_compat"]`, `observability.enabled: true`, empty `d1_databases` / `r2_buckets` / `kv_namespaces` arrays (filled in Phases 2/5/8), `vars` seeded with `APP_ENV` and `VERSION`.
+- `apps/api/src/index.ts` — Hono app, single `GET /health` route, default export `{ fetch: app.fetch }`.
+
+### Why
+
+**`@verifly/api` as a workspace package, not a standalone repo.** One monorepo, one lockfile — the API shares `@verifly/types` and (in Phase 6) `@verifly/api-client` with the 5 frontends without version drift. The frontends can import the same Zod schemas the server validates against, which is the whole point of putting the API in-repo.
+
+**Cloudflare-typed tsconfig — no DOM.** The base config at `packages/config/tsconfig.base.json` includes `DOM` + `DOM.Iterable` in `lib` because every consumer so far has been a React app. The Workers runtime doesn't have `window` / `document`; including DOM types would let route handlers compile against APIs that crash at runtime. Explicitly overriding `lib: ["ES2022"]` and `types: ["@cloudflare/workers-types", "@types/bun"]` gives the Workers `fetch`/`Request`/`Response` types and nothing misleading.
+
+**Empty binding arrays instead of omitted keys.** `wrangler.jsonc` declares `d1_databases: []`, `r2_buckets: []`, `kv_namespaces: []` up front (both at top level and under `env.prod`). Keeping the keys present means Phase 2/5/8 is a pure append — no schema-shape diffs muddying the commit.
+
+**Dev-mode boot verification before any domain work.** `wrangler dev` runs the worker under Miniflare — a local emulator of the Workers runtime. Hitting `localhost:8787/health` and getting `ok: true` proves the Worker bundle compiles and the router dispatches correctly, without needing `wrangler login` or a real deploy. That lets Phase 1 finish fully offline.
+
+### How
+
+Phase 1 deliberately left the commit un-done. Next session should verify the diff and run `git commit -m "feat(api): scaffold @verifly/api worker with /health endpoint"`.
+
+Next up — Phase 2 needs an authenticated `wrangler` (`bunx wrangler login`) and starts provisioning D1.
