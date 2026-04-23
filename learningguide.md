@@ -494,3 +494,54 @@ User asked the direct question: *"can I just change everything to be run locally
 ### Binding scope
 
 Every rule in `namingconventions.md` applies to every PR merged to `main`. When a rule is wrong, update the document *in the same PR* that changes the code — never allow the document to lag the codebase. When a new pattern emerges (second occurrence of something unnamed), codify it here before the third occurrence.
+
+---
+
+## 15. Backend Phase 2 — SQLite client with WAL + FK pragmas (2026-04-23)
+
+### What
+
+- `apps/api/src/db/client.ts` — `createDb(path)` opens a `bun:sqlite` `Database` and runs four pragmas: `journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`, `busy_timeout=5000`. `toDrizzle(sqlite)` returns a Drizzle handle via `drizzle-orm/bun-sqlite`. `resolveDatabasePath(url)` strips the `file:` prefix and passes `:memory:` through unchanged.
+- `apps/api/src/db/schema/index.ts` — empty barrel (`export const schema = {} as const`). Phase 3 populates it.
+- `apps/api/src/db/pragmas.test.ts` — four `bun:test` specs, one per pragma, each running against a fresh tmp-file SQLite DB.
+- `apps/api/package.json` — added scripts `db:migrate` (stub), `db:reset` (deletes `.data/*.sqlite` and `-shm`/`-wal` sidecars), `db:seed` (stub); switched `test` from `vitest` to `bun test`.
+
+Verified: `bun run typecheck` clean, `bun run test` → 4 pass, `bun run dev` still boots and `GET /health` still returns `{"ok":true,"service":"verifly-api","version":"0.0.0"}`.
+
+### Why each pragma
+
+- **`journal_mode=WAL`.** Write-Ahead Logging separates readers from writers. In rollback-journal mode (the SQLite default), a writer blocks all readers for the duration of its transaction; in WAL mode, readers see a consistent snapshot while a writer appends to the WAL file. For a web API with concurrent request handlers all talking to the same DB file, this is the difference between "serialized under load" and "doesn't serialize". WAL is also the mode that survives power loss cleanly.
+- **`foreign_keys=ON`.** SQLite parses `FOREIGN KEY` declarations but does **not** enforce them unless this pragma is set — per connection. A fresh handle that forgets this pragma will silently accept orphaned rows. Setting it inside `createDb` ties enforcement to every `Database` this codebase opens, so services never have to remember.
+- **`synchronous=NORMAL`.** Controls how aggressively SQLite fsyncs. `FULL` (default for rollback-journal mode) fsyncs on every commit; `NORMAL` fsyncs at checkpoints. `NORMAL` is the documented safe setting for WAL — a crash can lose the last uncommitted transaction but never corrupts the DB — and is what most WAL-mode deployments run.
+- **`busy_timeout=5000`.** Connection-local retry budget: if another connection holds the write lock, SQLite retries for up to 5 s before returning `SQLITE_BUSY`. Without this, a transient contention spike becomes a 500 at the API. Five seconds is long enough for a contending write to finish in practice and short enough to fail fast under real pathology.
+
+### Why a tmp-file DB in the pragma test (and not `:memory:`)
+
+The checklist says "spin up an in-memory DB, assert each pragma is set." But SQLite special-cases `:memory:` databases: `journal_mode` cannot be `WAL` on them — SQLite silently downgrades to `"memory"`. If the test used `:memory:`, the WAL assertion would be impossible to satisfy and we'd be testing a pragma that the real code path does apply to the dev DB.
+
+The test creates a fresh file under `mkdtempSync(tmpdir())`, opens the DB there, queries `PRAGMA journal_mode` et al., and `rmSync`s the directory in `afterEach`. Same spirit as the checklist ("don't touch the real dev DB") without the `:memory:` gotcha.
+
+### Why Bun's native test runner, not vitest
+
+`apps/api/package.json` originally declared `vitest` as the test runner, but vitest runs under Node, and Node cannot resolve `bun:sqlite` — the module is a Bun intrinsic with no npm fallback. Running `bunx vitest` doesn't fix it because vitest still drives Node's module resolution internally.
+
+Bun ships a vitest-compatible test runner (`bun test`) that imports from `bun:test` instead of `"vitest"`. Same `describe`/`it`/`expect` surface, runs under Bun so `bun:sqlite` Just Works, and is faster (no vite transform pipeline). We kept `vitest` in `devDependencies` for now in case frontend-adjacent test code ever wants it, but the API package is Bun-native.
+
+### Why `toDrizzle(sqlite)` exists even though no route uses it yet
+
+`createDb` hands back a raw `bun:sqlite` `Database`. Services should never see that type — they see the Drizzle handle, which carries the typed schema. Splitting the two functions means tests can `createDb(path)` and inspect raw pragmas (as `pragmas.test.ts` does), while services compose `toDrizzle(createDb(path))`. The separation also makes the eventual Phase 15 Postgres adapter mechanical: only `toDrizzle` changes to import from `drizzle-orm/node-postgres` instead.
+
+### Why `resolveDatabasePath` parses `file:` URLs
+
+Phase 4.1 will validate env vars through Zod and pass `DATABASE_URL` into the context. The accepted values are `file:./.data/verifly-dev.sqlite` (dev), `file:/absolute/path` (prod-ish), and `:memory:` (tests). `bun:sqlite`'s `Database` constructor takes a path, not a URL, so we need one place to turn the URL form into a path. Doing it in `client.ts` keeps the `file:` contract out of every call site.
+
+### Mistakes to avoid
+
+- **Don't run pragmas once globally.** They're **per-connection** in SQLite. If a future phase opens a second `Database` handle (migrations, a worker, a repl) without going through `createDb`, its foreign-key enforcement will silently turn off. Every handle the API opens goes through `createDb`.
+- **Don't mix `journal_mode=WAL` with a network filesystem.** SQLite's WAL implementation assumes local `mmap` semantics. On NFS / EFS / SMB, WAL can corrupt the DB. Dev is fine (local disk); Phase 15 plans Postgres on RDS, not SQLite on EFS, for exactly this reason.
+- **Don't commit `.data/`.** `apps/api/.gitignore` ignores the whole directory. Secrets never land there (`.env` is also ignored), but ad-hoc fixtures should go under `tests/` not `.data/`.
+
+### Next up
+
+Phase 3 — Drizzle schema files (one per table), `drizzle.config.ts`, `bunx drizzle-kit generate --name=init`, and a `src/db/migrate.ts` runner. At that point the empty `schema/index.ts` barrel fills out, and `bun run db:migrate` becomes real.
+

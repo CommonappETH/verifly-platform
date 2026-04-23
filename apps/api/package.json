@@ -8,7 +8,10 @@
     "build": "bun build src/server.ts --outdir=dist --target=bun",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"(lint config added in Phase 4)\"",
-    "test": "echo \"(tests added in Phase 13)\""
+    "test": "bun test",
+    "db:migrate": "echo \"(wired in Phase 3)\"",
+    "db:reset": "rm -f .data/*.sqlite .data/*.sqlite-shm .data/*.sqlite-wal",
+    "db:seed": "echo \"(wired in Phase 14)\""
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",

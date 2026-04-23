@@ -65,15 +65,15 @@ The original v1 checklist (Cloudflare Workers) completed Phase 0 and Phase 1 on 
 
 ## Phase 2 — SQLite database provisioning
 
-- [ ] Create `apps/api/.data/` (gitignored); dev DB file lives at `apps/api/.data/verifly-dev.sqlite`.
-- [ ] Create `apps/api/src/db/client.ts`:
+- [x] Create `apps/api/.data/` (gitignored); dev DB file lives at `apps/api/.data/verifly-dev.sqlite`. (`.data/` is covered by `apps/api/.gitignore`; `createDb` `mkdir`s the parent on first open.)
+- [x] Create `apps/api/src/db/client.ts`:
   - `import { Database } from "bun:sqlite"`.
   - `export function createDb(path: string)` — opens the file, sets pragmas: `journal_mode=WAL`, `foreign_keys=ON`, `synchronous=NORMAL`, `busy_timeout=5000`.
-  - `export function toDrizzle(sqlite: Database)` — returns `drizzle(sqlite, { schema })` from `drizzle-orm/bun-sqlite`.
-- [ ] Add `DATABASE_URL` handling: default `file:./.data/verifly-dev.sqlite`. Tests override to `:memory:`.
-- [ ] Create `apps/api/src/db/pragmas.test.ts` — spin up an in-memory DB, assert each pragma is set.
-- [ ] Add package scripts: `db:migrate` (Phase 3), `db:reset` (delete `.data/*.sqlite`), `db:seed` (Phase 14).
-- [ ] Verify: `bun run dev` still boots and `/health` still returns OK after wiring the DB client (not yet invoked by any route).
+  - `export function toDrizzle(sqlite: Database)` — returns `drizzle(sqlite, { schema })` from `drizzle-orm/bun-sqlite`. (A placeholder `src/db/schema/index.ts` barrel was added so the signature matches now; Phase 3 fills it in.)
+- [x] Add `DATABASE_URL` handling: default `file:./.data/verifly-dev.sqlite`. Tests override to `:memory:`. (Provided via `resolveDatabasePath(url)` in `client.ts`; `:memory:` and `file:` prefixes both supported. Not yet wired from `secrets.ts` — that arrives in Phase 4.1.)
+- [x] Create `apps/api/src/db/pragmas.test.ts` — spin up an in-memory DB, assert each pragma is set. (Deviation: the test uses a tmp-file DB, not `:memory:`, because SQLite downgrades `journal_mode` to `"memory"` for in-memory DBs, which would make the WAL assertion unsatisfiable. Documented in `learningguide.md` §15.)
+- [x] Add package scripts: `db:migrate` (Phase 3), `db:reset` (delete `.data/*.sqlite`), `db:seed` (Phase 14). (`db:migrate` and `db:seed` are echo stubs until their real phases; `db:reset` also clears `-shm`/`-wal` sidecars. Test script switched from `vitest` to `bun test` because vitest can't resolve `bun:sqlite` — it runs under Node.)
+- [x] Verify: `bun run dev` still boots and `/health` still returns OK after wiring the DB client (not yet invoked by any route).
 - [ ] Commit: `feat(api): SQLite client with WAL + FK pragmas`.
 
 ## Phase 3 — Drizzle schema & migrations
