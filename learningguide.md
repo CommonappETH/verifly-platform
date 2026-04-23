@@ -396,3 +396,65 @@ Files created:
 Phase 1 deliberately left the commit un-done. Next session should verify the diff and run `git commit -m "feat(api): scaffold @verifly/api worker with /health endpoint"`.
 
 Next up — Phase 2 needs an authenticated `wrangler` (`bunx wrangler login`) and starts provisioning D1.
+
+**(2026-04-23 note: superseded by §13 — we pivoted the backend stack away from Cloudflare before Phase 2 ran. §11 and §12 are kept as an honest record of the v1 decisions, not as current guidance.)**
+
+---
+
+## 13. Backend Phase 0 v2 — Stack pivot to local-first, AWS later (2026-04-23)
+
+Branch: `backend/phase-0-v2-reset`. Replaces the Cloudflare Workers path chosen in §11/§12.
+
+### What
+
+- Hard-reset `apps/api` from Cloudflare Workers to a plain Bun + Hono service:
+  - Deleted `apps/api/wrangler.jsonc`.
+  - Rewrote `apps/api/package.json` — drops `wrangler`, `@cloudflare/workers-types`, `@cloudflare/vitest-pool-workers`; keeps `hono`, `drizzle-orm`, `zod`, `@noble/hashes`, `nanoid`; scripts now run under `bun` directly (`dev`: `bun run --watch src/server.ts`, `build`: `bun build … --target=bun`, `test`: `vitest`).
+  - Rewrote `apps/api/tsconfig.json` — dropped `@cloudflare/workers-types` from `types`, kept `@types/bun`, `lib` still `["ES2022"]`.
+- `apps/api/src/index.ts` stays in place for this phase; Phase 1 of v2 replaces it with `src/app.ts` + `src/server.ts`.
+- Adopted `checklistBackend.md` v2 (merged via PR #8) as the governing roadmap.
+
+### Why
+
+User asked the direct question: *"can I just change everything to be run locally until I am ready to deploy on AWS, no Cloudflare?"* The pivot is the right call because:
+
+**Runtime family match.** Workers runs on V8 isolates (a limited Web-API surface, no `node:fs`, no sockets). AWS Lambda/Fargate runs Node-compatible runtimes. Building on Bun — which implements the Node API surface — means every line of code we write now is code AWS will execute later. Building on Workers meant a non-trivial port (R2 SDK → S3 SDK, KV → DynamoDB, `env` bindings → `process.env` + Secrets Manager, `waitUntil` → Node async) for no interim benefit since we weren't using the Workers edge advantages anyway.
+
+**Simpler local loop.** `bun run --watch src/server.ts` boots in ~150 ms against a real Node-compatible runtime. No Miniflare emulator, no wrangler config surface, no "works on `wrangler dev` but not on deploy" surprises. Tests run in the same runtime as prod.
+
+**Cost = 30 min of rewrites.** Nothing was ever provisioned in Cloudflare (no `wrangler login`, no D1/R2/KV creates). Four files changed. The v1 Phase 4.1 port/adapter design was specifically built so the swap is ~5 adapter files, not every route — so no route-level rework is needed either.
+
+**AWS still isn't today's problem.** The checklist intentionally defers the actual AWS rollout to a follow-up project. Phase 15 writes the adapter skeleton and parity gates so when that rollout happens it's pure infra work, not application rework.
+
+### How — decisions recorded
+
+**Runtime.** Bun. Native TypeScript, fast startup, Node-compatible API, already the repo's default package manager and JS runtime. Lambda supports custom runtimes if we want Bun in prod; otherwise `hono/aws-lambda` runs the same app under the stock Node runtime — both paths work without source changes.
+
+**Router.** Hono. Runtime-agnostic; same code runs under Bun, Node, Deno, Workers, and Lambda via `hono/aws-lambda`.
+
+**Database.** `bun:sqlite` (built into Bun, zero dep) via Drizzle's `bun-sqlite` driver. Primary dev DB. **Schemas constrained to the SQLite ∩ Postgres intersection** — no JSON columns, no `AUTOINCREMENT`, no SQLite-only defaults, explicit `CHECK` constraints instead of type coercion, text UUIDs, integer-millis timestamps. A parallel Postgres-via-Docker parity track (checklist Phase 14.3) runs the integration suite against Postgres once a week / before schema changes merge, to catch drift *before* AWS day.
+
+**Object storage.** Local filesystem under `apps/api/.storage/` (gitignored). Presigned URLs = HMAC of `method|key|expiresAt|mimeType|maxBytes` using `SESSION_PEPPER`; the API serves `GET /storage/*` and `PUT /storage/*` with signature verification. Same `ObjectStoragePort` interface as the AWS adapter (S3 `getSignedUrl`) will implement.
+
+**Sessions.** SQLite-backed via a `sessions` table with TTL enforcement on read. The `SessionStorePort` interface matches DynamoDB's eventual-TTL semantics so the AWS swap is drop-in.
+
+**Email.** Local stub writes rendered messages to stdout and `./.data/outbox/*.json` (easy test assertions). Provider swap (Postmark / Resend / SES) lands in checklist Phase 11.
+
+**Base URLs.** Dev: `http://localhost:8787` for `@verifly/api`; frontends keep their existing `vite dev` ports (unchanged). AWS URLs deferred to checklist Phase 15; we don't own `verifly.<domain>` yet and Phase 15 is where DNS/zone ownership re-enters the plan.
+
+**AWS target shape (documented now so Phase 15 has no open design questions).** Default: API Gateway HTTP API → Lambda (via `hono/aws-lambda`), RDS Postgres (Aurora Serverless v2 if budget allows, single-AZ `db.t4g.micro` otherwise), S3 for documents, DynamoDB single-table for sessions, SES for email (out-of-sandbox required before prod), Secrets Manager for secrets, EventBridge → a separate cron Lambda for scheduled jobs, CloudWatch + Sentry for logs/errors. Fallback: if any route exceeds Lambda's 15-min / 6 MB limits, move that route (or the whole service) to Fargate behind an ALB — same Hono app, different handler glue.
+
+**DB parity strategy.** Two Drizzle configs point at the same schema directory: `drizzle.config.ts` (SQLite, primary) and `drizzle.postgres.config.ts` (Postgres, parity). A `bun run db:verify-postgres` task starts docker-compose Postgres, generates both migration sets, diffs them for shape divergence, and runs the integration suite against Postgres. Runs weekly or before schema merges — doesn't slow day-to-day work.
+
+### Carryover and reversals from §11/§12
+
+- Cloudflare account topology decision → **obsolete**. No accounts are needed.
+- `api.verifly.<domain>` URL scheme → **obsolete for now**. Revisit in Phase 15 when DNS becomes relevant again.
+- DNS/zone ownership item → **deferred to Phase 15**, not Phase 11.
+- Wrangler as a tool → **dropped entirely**. `bunx wrangler` is no longer needed anywhere.
+- The v1 `apps/api/src/index.ts` (Hono worker with `env.VERSION`) → **kept for this commit**, replaced in Phase 1 v2 with `src/app.ts` (factory) + `src/server.ts` (`Bun.serve`).
+- The v1 Phase 4.1 port/adapter design → **fully carried over**. `platform/cloudflare/` becomes `platform/local/`; `platform/aws/` is added in Phase 15. Services still take `ctx: Ctx` as first arg; no route changes.
+
+### Open items
+
+- None for Phase 0 v2 — everything is local-only. Next session: Phase 1 v2 (rescaffold `apps/api/src/` into `app.ts` + `server.ts` with `Bun.serve`).
