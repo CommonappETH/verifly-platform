@@ -86,27 +86,27 @@ The original v1 checklist (Cloudflare Workers) completed Phase 0 and Phase 1 on 
 - Foreign keys: always declared, with `ON DELETE` action explicit (`cascade` or `restrict`).
 - No `JSON` columns in v1 of the schema. If structured blobs are needed, use `text` + Zod parsing at the service boundary. (Postgres will later add `jsonb`; re-evaluate in Phase 15.)
 
-- [ ] Create `apps/api/src/db/schema/` with one file per entity.
-- [ ] `schema/users.ts` — `users`: `id` PK, `email` text unique not null, `password_hash` text not null, `role` text not null (CHECK list of `UserRole`), `name` text, `created_at`, `updated_at`, `deleted_at` (nullable). Index on `email`.
-- [ ] `schema/students.ts` — `students`: `id` PK, `user_id` FK→users, `first_name`, `last_name`, `full_name`, `country`, `nationality`, `gpa` (real), `university` (text), `intended_study` (text), timestamps, soft delete. Index on `user_id`.
-- [ ] `schema/guardians.ts` — `guardians`: `id`, `student_id` FK→students, `full_name`, `relationship`, `email`, `phone`, timestamps.
-- [ ] `schema/counselors.ts` — `counselors`: `id`, `user_id` FK→users, `school_name`, timestamps.
-- [ ] `schema/bank_users.ts` — `bank_users`: `id`, `user_id` FK→users, `bank_id` FK→organizations (nullable until 3.5), timestamps.
-- [ ] `schema/organizations.ts` — `organizations`: `id`, `kind` text CHECK (`university`|`bank`), `name`, `slug` unique, `country`, timestamps. Index on `(kind, slug)`.
-- [ ] `schema/university_users.ts` — `university_users`: `id`, `user_id` FK→users, `university_id` FK→organizations, `title`, timestamps.
-- [ ] `schema/applications.ts` — `applications`: `id`, `student_id` FK, `university_id` FK, `program`, `status` text CHECK, `verification_status`, `document_status`, `decision_status`, `applicant_type`, `submitted_at`, `updated_at`. Index on `(student_id)`, `(university_id, status)`.
-- [ ] `schema/verifications.ts` — `verifications`: `id`, `code` text unique (short human code), `student_id` FK, `application_id` FK nullable, `bank_id` FK→organizations nullable, `guardian_id` FK nullable, `requested_amount` integer (minor units), `verified_amount` integer nullable, `currency` text (ISO-4217), `status` text CHECK, `rejection_reason`, `submitted_at`, `decided_at`, `verified_at`. Index on `(student_id)`, `(bank_id, status)`, `(code)`.
-- [ ] `schema/documents.ts` — `documents`: `id`, `owner_id` FK→users, `kind` text CHECK, `status` text CHECK, `application_id` nullable FK, `verification_id` nullable FK, `storage_key` text unique (relative path inside `STORAGE_DIR`), `file_name`, `mime_type`, `size_bytes` integer, `uploaded_at`, `reviewed_at`. Index on `(owner_id)`, `(application_id)`, `(verification_id)`.
-- [ ] `schema/sessions.ts` — `sessions`: `id` (SHA-256 of token), `user_id` FK, `created_at`, `expires_at` integer millis, `ip`, `user_agent`, `revoked_at` nullable. Index on `user_id`, `expires_at`.
-- [ ] `schema/rate_limits.ts` — `rate_limits`: `key` PK (e.g. `ip:/auth/login`), `window_start` integer millis, `count` integer. Used by the KV-less local rate limiter.
-- [ ] `schema/audit_log.ts` — `audit_log`: `id`, `actor_user_id`, `action` text, `entity_type` text, `entity_id` text, `metadata` text (stringified JSON, Zod-parsed at read time), `created_at`, `ip`. Index on `(entity_type, entity_id)`.
-- [ ] `schema/password_resets.ts` — `password_resets`: `id`, `user_id` FK, `token_hash` unique, `expires_at`, `used_at`. Index on `token_hash`.
-- [ ] `schema/index.ts` — barrel re-exporting all tables and a `schema` object for Drizzle.
-- [ ] Create `apps/api/drizzle.config.ts` — `dialect: "sqlite"`, `schema: "./src/db/schema"`, `out: "./migrations"`, `driver` unset (we run migrations via our own runner, see below).
-- [ ] Generate initial migration: `cd apps/api && bunx drizzle-kit generate --name=init`. Review `migrations/0000_init.sql` — every table and index present, no SQLite-only syntax (`AUTOINCREMENT`, `WITHOUT ROWID`, etc.).
-- [ ] Create `apps/api/src/db/migrate.ts` — a small CLI: opens the DB, runs `migrate(db, { migrationsFolder: "./migrations" })` from `drizzle-orm/bun-sqlite/migrator`. Exits non-zero on failure.
-- [ ] Wire `bun run db:migrate` → `bun run src/db/migrate.ts`.
-- [ ] Verify: `bun run db:migrate` creates `.data/verifly-dev.sqlite` and `sqlite3 .data/verifly-dev.sqlite ".tables"` lists every table.
+- [x] Create `apps/api/src/db/schema/` with one file per entity.
+- [x] `schema/users.ts` — `users`: `id` PK, `email` text unique not null, `password_hash` text not null, `role` text not null (CHECK list of `UserRole`), `name` text, `created_at`, `updated_at`, `deleted_at` (nullable). Index on `email`.
+- [x] `schema/students.ts` — `students`: `id` PK, `user_id` FK→users, `first_name`, `last_name`, `full_name`, `country`, `nationality`, `gpa` (real), `university` (text), `intended_study` (text), timestamps, soft delete. Index on `user_id`.
+- [x] `schema/guardians.ts` — `guardians`: `id`, `student_id` FK→students, `full_name`, `relationship`, `email`, `phone`, timestamps.
+- [x] `schema/counselors.ts` — `counselors`: `id`, `user_id` FK→users, `school_name`, timestamps.
+- [x] `schema/bank_users.ts` — `bank_users`: `id`, `user_id` FK→users, `bank_id` FK→organizations (nullable until 3.5), timestamps.
+- [x] `schema/organizations.ts` — `organizations`: `id`, `kind` text CHECK (`university`|`bank`), `name`, `slug` unique, `country`, timestamps. Index on `(kind, slug)`.
+- [x] `schema/university_users.ts` — `university_users`: `id`, `user_id` FK→users, `university_id` FK→organizations, `title`, timestamps.
+- [x] `schema/applications.ts` — `applications`: `id`, `student_id` FK, `university_id` FK, `program`, `status` text CHECK, `verification_status`, `document_status`, `decision_status`, `applicant_type`, `submitted_at`, `updated_at`. Index on `(student_id)`, `(university_id, status)`.
+- [x] `schema/verifications.ts` — `verifications`: `id`, `code` text unique (short human code), `student_id` FK, `application_id` FK nullable, `bank_id` FK→organizations nullable, `guardian_id` FK nullable, `requested_amount` integer (minor units), `verified_amount` integer nullable, `currency` text (ISO-4217), `status` text CHECK, `rejection_reason`, `submitted_at`, `decided_at`, `verified_at`. Index on `(student_id)`, `(bank_id, status)`, `(code)`.
+- [x] `schema/documents.ts` — `documents`: `id`, `owner_id` FK→users, `kind` text CHECK, `status` text CHECK, `application_id` nullable FK, `verification_id` nullable FK, `storage_key` text unique (relative path inside `STORAGE_DIR`), `file_name`, `mime_type`, `size_bytes` integer, `uploaded_at`, `reviewed_at`. Index on `(owner_id)`, `(application_id)`, `(verification_id)`.
+- [x] `schema/sessions.ts` — `sessions`: `id` (SHA-256 of token), `user_id` FK, `created_at`, `expires_at` integer millis, `ip`, `user_agent`, `revoked_at` nullable. Index on `user_id`, `expires_at`.
+- [x] `schema/rate_limits.ts` — `rate_limits`: `key` PK (e.g. `ip:/auth/login`), `window_start` integer millis, `count` integer. Used by the KV-less local rate limiter.
+- [x] `schema/audit_log.ts` — `audit_log`: `id`, `actor_user_id`, `action` text, `entity_type` text, `entity_id` text, `metadata` text (stringified JSON, Zod-parsed at read time), `created_at`, `ip`. Index on `(entity_type, entity_id)`.
+- [x] `schema/password_resets.ts` — `password_resets`: `id`, `user_id` FK, `token_hash` unique, `expires_at`, `used_at`. Index on `token_hash`.
+- [x] `schema/index.ts` — barrel re-exporting all tables and a `schema` object for Drizzle.
+- [x] Create `apps/api/drizzle.config.ts` — `dialect: "sqlite"`, `schema: "./src/db/schema"`, `out: "./migrations"`, `driver` unset (we run migrations via our own runner, see below).
+- [x] Generate initial migration: `cd apps/api && bunx drizzle-kit generate --name=init`. Review `migrations/0000_init.sql` — every table and index present, no SQLite-only syntax (`AUTOINCREMENT`, `WITHOUT ROWID`, etc.). (14 tables + 26 indexes, `grep -Ei 'autoincrement|without rowid'` returns no matches.)
+- [x] Create `apps/api/src/db/migrate.ts` — a small CLI: opens the DB, runs `migrate(db, { migrationsFolder: "./migrations" })` from `drizzle-orm/bun-sqlite/migrator`. Exits non-zero on failure. (Reads `DATABASE_URL` via `resolveDatabasePath`; defaults to `file:./.data/verifly-dev.sqlite`.)
+- [x] Wire `bun run db:migrate` → `bun run src/db/migrate.ts`.
+- [x] Verify: `bun run db:migrate` creates `.data/verifly-dev.sqlite` and `sqlite3 .data/verifly-dev.sqlite ".tables"` lists every table.
 - [ ] Commit: `feat(api): initial SQLite schema + migration runner`.
 
 ## Phase 4 — Core API infrastructure

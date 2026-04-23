@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo \"(lint config added in Phase 4)\"",
     "test": "bun test",
-    "db:migrate": "echo \"(wired in Phase 3)\"",
+    "db:migrate": "bun run src/db/migrate.ts",
     "db:reset": "rm -f .data/*.sqlite .data/*.sqlite-shm .data/*.sqlite-wal",
     "db:seed": "echo \"(wired in Phase 14)\""
   },
