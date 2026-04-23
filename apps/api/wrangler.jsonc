@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "verifly-api-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "APP_ENV": "dev",
+    "VERSION": "0.0.0"
+  },
+  "d1_databases": [],
+  "r2_buckets": [],
+  "kv_namespaces": [],
+  "env": {
+    "prod": {
+      "name": "verifly-api-prod",
+      "vars": {
+        "APP_ENV": "prod",
+        "VERSION": "0.0.0"
+      },
+      "d1_databases": [],
+      "r2_buckets": [],
+      "kv_namespaces": []
+    }
+  }
+}

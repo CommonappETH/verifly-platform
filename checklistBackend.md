@@ -18,32 +18,32 @@ Entities (canonical shapes already in `@verifly/types`): `User`, `Student`, `Gua
 
 ## Phase 0 — Pre-flight
 
-- [ ] Create a work branch from `main`: `git checkout -b backend/phase-0-bootstrap`.
-- [ ] Record baseline: `bun install` at root succeeds; all 5 apps still build (`cd apps/<x> && bun run build` each).
-- [ ] Install Wrangler globally if not already: `bun add -g wrangler` (or use `bunx wrangler`).
-- [ ] Run `wrangler login` and confirm the Cloudflare account that owns the 5 frontend Workers.
-- [ ] Decide and document: single prod account vs. separate prod/staging accounts. Default: **one account, two environments** (`dev`, `prod`) inside it. Record choice in `learningguide.md`.
-- [ ] Decide and document the API base URL scheme. Default: `https://api.verifly.<domain>` for prod, `https://api-dev.verifly.<domain>` for dev.
-- [ ] Confirm DNS/zone ownership in Cloudflare for the chosen domain. If not owned yet, stop and sort this out — Phase 11 (custom domain + CORS) depends on it.
+- [x] Create a work branch from `main`: `git checkout -b backend/phase-0-bootstrap`.
+- [x] Record baseline: `bun install` at root succeeds; all 5 apps still build (`cd apps/<x> && bun run build` each).
+- [x] Install Wrangler globally if not already: `bun add -g wrangler` (or use `bunx wrangler`). — Chose `bunx wrangler` (CLI pinned via `apps/api/devDependencies`; see learningguide §11).
+- [ ] Run `wrangler login` and confirm the Cloudflare account that owns the 5 frontend Workers. — **User action required (interactive).**
+- [x] Decide and document: single prod account vs. separate prod/staging accounts. Default: **one account, two environments** (`dev`, `prod`) inside it. Record choice in `learningguide.md`. — learningguide §11.
+- [x] Decide and document the API base URL scheme. Default: `https://api.verifly.<domain>` for prod, `https://api-dev.verifly.<domain>` for dev. — learningguide §11.
+- [~] Confirm DNS/zone ownership in Cloudflare for the chosen domain. If not owned yet, stop and sort this out — Phase 11 (custom domain + CORS) depends on it. — **Deferred:** proceeding on `*.workers.dev` URLs; Phase 11 is blocked until DNS is sorted.
 
 ## Phase 1 — Scaffold `apps/api`
 
-- [ ] Create directory: `mkdir -p apps/api/src`.
-- [ ] Create `apps/api/package.json`:
+- [x] Create directory: `mkdir -p apps/api/src`.
+- [x] Create `apps/api/package.json`:
   - Name: `@verifly/api`.
   - Scripts: `dev` (`wrangler dev`), `deploy:dev`, `deploy:prod`, `build` (`wrangler deploy --dry-run --outdir=dist`), `typecheck`, `lint`, `test`.
   - Dependencies: `hono`, `drizzle-orm`, `zod`, `@noble/hashes` (for argon2id via WASM), `nanoid`.
   - DevDependencies: `wrangler`, `drizzle-kit`, `@cloudflare/workers-types`, `@types/bun`, `typescript`, `vitest`, `@cloudflare/vitest-pool-workers`.
-- [ ] Create `apps/api/tsconfig.json` extending `@verifly/config/tsconfig.base.json`, with `types: ["@cloudflare/workers-types", "@types/bun"]` and `lib: ["ES2022"]` (no DOM).
-- [ ] Create `apps/api/wrangler.jsonc`:
+- [x] Create `apps/api/tsconfig.json` extending `@verifly/config/tsconfig.base.json`, with `types: ["@cloudflare/workers-types", "@types/bun"]` and `lib: ["ES2022"]` (no DOM).
+- [x] Create `apps/api/wrangler.jsonc`:
   - `name: "verifly-api-dev"` at top; use `env.prod.name = "verifly-api-prod"`.
   - `main: "src/index.ts"`, `compatibility_date` to today, `compatibility_flags: ["nodejs_compat"]`.
   - Empty bindings block (`d1_databases`, `r2_buckets`, `kv_namespaces`, `vars`) — fill in Phase 2/8.
   - `observability: { enabled: true }`.
-- [ ] Create `apps/api/src/index.ts` with a minimal Hono app exporting `{ fetch: app.fetch }`. Single route: `GET /health` → `{ ok: true, service: "verifly-api", version: env.VERSION }`.
-- [ ] Add `apps/api` to `bun.lock` via `bun install` at the root.
-- [ ] Verify: `cd apps/api && bun run dev` starts Wrangler at `http://localhost:8787/health` and returns `{ ok: true }`.
-- [ ] Verify: `cd apps/api && bun run typecheck` passes.
+- [x] Create `apps/api/src/index.ts` with a minimal Hono app exporting `{ fetch: app.fetch }`. Single route: `GET /health` → `{ ok: true, service: "verifly-api", version: env.VERSION }`.
+- [x] Add `apps/api` to `bun.lock` via `bun install` at the root.
+- [x] Verify: `cd apps/api && bun run dev` starts Wrangler at `http://localhost:8787/health` and returns `{ ok: true }`. — confirmed `{"ok":true,"service":"verifly-api","version":"0.0.0"}`.
+- [x] Verify: `cd apps/api && bun run typecheck` passes.
 - [ ] Commit: `feat(api): scaffold @verifly/api worker with /health endpoint`.
 
 ## Phase 2 — D1 database provisioning
