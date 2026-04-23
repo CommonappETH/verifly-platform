@@ -52,15 +52,15 @@ The original v1 checklist (Cloudflare Workers) completed Phase 0 and Phase 1 on 
 
 ## Phase 1 — Rescaffold `apps/api` (Bun + Hono)
 
-- [ ] Ensure directory exists: `apps/api/src/`.
-- [ ] Create `apps/api/src/app.ts` — the Hono app factory. Exports `createApp(ctx: Ctx): Hono`. Phase 4.1 fills in `Ctx`; for now it accepts a minimal shape `{ env: "dev" }`.
-- [ ] Create `apps/api/src/server.ts` — reads `PORT` (default 8787) and calls `Bun.serve({ fetch: createApp({ env: "dev" }).fetch, port })`. Logs `listening on :PORT`.
-- [ ] Move the existing `/health` route from v1 `src/index.ts` into `app.ts`: `app.get("/health", (c) => c.json({ ok: true, service: "verifly-api", version: process.env.VERSION ?? "0.0.0" }))`.
-- [ ] Delete `apps/api/src/index.ts` (superseded by `app.ts` + `server.ts`).
-- [ ] Create `apps/api/.env.example` documenting: `PORT`, `APP_ENV`, `DATABASE_URL` (filled Phase 2), `SESSION_PEPPER` (Phase 5), `COOKIE_DOMAIN`, `ALLOWED_ORIGINS` (Phase 11), `STORAGE_DIR` (Phase 8).
-- [ ] Add `apps/api/.gitignore` covering `.env`, `.data/`, `.storage/`, `dist/`.
-- [ ] Verify: `cd apps/api && bun run dev` starts the server; `curl http://localhost:8787/health` → `{"ok":true,"service":"verifly-api","version":"0.0.0"}`.
-- [ ] Verify: `cd apps/api && bun run typecheck` passes.
+- [x] Ensure directory exists: `apps/api/src/`.
+- [x] Create `apps/api/src/app.ts` — the Hono app factory. Exports `createApp(ctx: Ctx): Hono`. Phase 4.1 fills in `Ctx`; for now it accepts a minimal shape `{ env: "dev" }`.
+- [x] Create `apps/api/src/server.ts` — reads `PORT` (default 8787) and calls `Bun.serve({ fetch: createApp({ env: "dev" }).fetch, port })`. Logs `listening on :PORT`.
+- [x] Move the existing `/health` route from v1 `src/index.ts` into `app.ts`: `app.get("/health", (c) => c.json({ ok: true, service: "verifly-api", version: process.env.VERSION ?? "0.0.0" }))`.
+- [x] Delete `apps/api/src/index.ts` (superseded by `app.ts` + `server.ts`).
+- [x] Create `apps/api/.env.example` documenting: `PORT`, `APP_ENV`, `DATABASE_URL` (filled Phase 2), `SESSION_PEPPER` (Phase 5), `COOKIE_DOMAIN`, `ALLOWED_ORIGINS` (Phase 11), `STORAGE_DIR` (Phase 8).
+- [x] Add `apps/api/.gitignore` covering `.env`, `.data/`, `.storage/`, `dist/`.
+- [x] Verify: `cd apps/api && bun run dev` starts the server; `curl http://localhost:8787/health` → `{"ok":true,"service":"verifly-api","version":"0.0.0"}`.
+- [x] Verify: `cd apps/api && bun run typecheck` passes.
 - [ ] Commit: `feat(api): Bun + Hono server with /health endpoint`.
 
 ## Phase 2 — SQLite database provisioning
