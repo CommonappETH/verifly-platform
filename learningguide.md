@@ -458,3 +458,39 @@ User asked the direct question: *"can I just change everything to be run locally
 ### Open items
 
 - None for Phase 0 v2 — everything is local-only. Next session: Phase 1 v2 (rescaffold `apps/api/src/` into `app.ts` + `server.ts` with `Bun.serve`).
+
+---
+
+## 14. Naming conventions (2026-04-23)
+
+`namingconventions.md` was previously empty. It is now filled in as a strict, opinionated, production-ready document covering file/folder layout, symbols (variables, functions, classes, types, React components), API routes + DTOs, database tables + columns + indexes, and environment variables. Good-vs-bad examples are given for every rule.
+
+### Why these specific rules
+
+**Consistency over preference.** A contributor should be able to predict any name in the codebase without opening the file next to it. That's worth more than any individual rule being "the best one" — the value is in everyone following the same one.
+
+**Case-sensitivity hazards are real.** macOS is case-insensitive by default, Linux CI and Lambda runtimes are case-sensitive. A folder called `UserProfile` on a developer's Mac silently breaks on deploy. Enforcing `kebab-case` for directories and files removes an entire class of "works on my machine" bugs.
+
+**DB and wire casings match their runtime.** Column names are `snake_case` because that's the SQL convention and what Drizzle's column mapper expects; JSON over the wire is `camelCase` because that's what TS code consumes without transformation. Drizzle does the mapping once at the ORM boundary — no ad-hoc `toCamel()` helpers, no mismatched cases in the middle of a service function.
+
+**Portability enforced by naming discipline.** The DB rules (text PKs, integer-millis timestamps, integer+CHECK booleans, no JSON columns, CHECK'd enum strings) are the SQLite ∩ Postgres intersection from §13 made concrete. If you follow the naming rules, you cannot accidentally write a schema that only works on SQLite. If you break them, the weekly Postgres-parity check (checklist Phase 14.3) will catch it before AWS does.
+
+**Security baked into env-var rules.** `VITE_*` gets bundled into the browser. Making that prefix mandatory-for-client-visible and forbidden-for-secrets prevents the classic "we leaked an API key through a Vite env var" incident.
+
+**No TypeScript `enum`.** Enums compile to runtime objects with quirks (reverse mappings, non-tree-shakeable), don't match `z.enum` outputs, and are awkward to serialize. `as const` string tuples are the modern TS idiom and round-trip cleanly through Zod, the wire, and the DB's `CHECK` constraints.
+
+### How this improves maintainability
+
+**Review speed.** Naming deviations become a one-line review comment pointing at the section of this document, not a style debate.
+
+**Onboarding speed.** The document is the canonical answer to "how do I name X in this repo." No tribal knowledge, no reading 50 files to infer the pattern.
+
+**Refactoring safety.** When every foreign key is `<table_singular>_id`, renaming a table is a mechanical grep. When every Zod schema is `<action><Entity>Schema`, finding all the inputs to an endpoint is one search.
+
+**Automation-ready.** Strict rules are enforceable by ESLint (`filename-case`, `naming-convention`) and lint-staged hooks. Loose rules can't be mechanized, so violations accumulate.
+
+**Future-proofing.** The rules explicitly reference the portability contract (SQLite ∩ Postgres, platform-adapter isolation) so when the AWS migration lands (checklist Phase 15), none of the application-code naming needs to change — only the platform adapter. That's the whole point.
+
+### Binding scope
+
+Every rule in `namingconventions.md` applies to every PR merged to `main`. When a rule is wrong, update the document *in the same PR* that changes the code — never allow the document to lag the codebase. When a new pattern emerges (second occurrence of something unnamed), codify it here before the third occurrence.
