@@ -111,18 +111,18 @@ The original v1 checklist (Cloudflare Workers) completed Phase 0 and Phase 1 on 
 
 ## Phase 4 — Core API infrastructure
 
-- [ ] Create `apps/api/src/lib/errors.ts` — `AppError` with `status`, `code`, `message`, `details?`; subclasses `NotFoundError`, `ValidationError`, `UnauthorizedError`, `ForbiddenError`, `ConflictError`, `RateLimitError`.
-- [ ] Create `apps/api/src/middleware/request-id.ts` — attaches `nanoid()` as `c.set("requestId", id)`, echoes `X-Request-ID` on the response.
-- [ ] Create `apps/api/src/middleware/logger.ts` — structured JSON logs to stdout: `{ level, ts, request_id, method, path, status, duration_ms, user_id? }`.
-- [ ] Create `apps/api/src/middleware/error-handler.ts` — converts `AppError` to `{ error: { code, message, details? }, request_id }` with the right status; unknown errors to 500 with a generated `request_id`; never leak stack traces in `APP_ENV=prod`.
-- [ ] Create `apps/api/src/lib/validate.ts` — `validate(schema, target: "body"|"query"|"params")` Hono middleware wrapping Zod; on failure throw `ValidationError`.
-- [ ] Create `apps/api/src/lib/responses.ts` — `ok(data)`, `created(data)`, `paginated(items, { cursor, hasMore })`, `empty()`.
+- [x] Create `apps/api/src/lib/errors.ts` — `AppError` with `status`, `code`, `message`, `details?`; subclasses `NotFoundError`, `ValidationError`, `UnauthorizedError`, `ForbiddenError`, `ConflictError`, `RateLimitError`.
+- [x] Create `apps/api/src/middleware/request-id.ts` — attaches `nanoid()` as `c.set("requestId", id)`, echoes `X-Request-ID` on the response.
+- [x] Create `apps/api/src/middleware/logger.ts` — structured JSON logs to stdout: `{ level, ts, request_id, method, path, status, duration_ms, user_id? }`.
+- [x] Create `apps/api/src/middleware/error-handler.ts` — converts `AppError` to `{ error: { code, message, details? }, request_id }` with the right status; unknown errors to 500 with a generated `request_id`; never leak stack traces in `APP_ENV=prod`.
+- [x] Create `apps/api/src/lib/validate.ts` — `validate(schema, target: "body"|"query"|"params")` Hono middleware wrapping Zod; on failure throw `ValidationError`.
+- [x] Create `apps/api/src/lib/responses.ts` — `ok(data)`, `created(data)`, `paginated(items, { cursor, hasMore })`, `empty()`.
 
 ### 4.1 — Platform abstraction (portability layer)
 
 Goal: route handlers and services never touch `bun:sqlite`, the filesystem, or `process.env` directly. They only touch `ctx.*`. Today `ctx` is backed by the `local` adapter; Phase 15 adds an `aws` adapter, and only `platform/index.ts` changes to switch.
 
-- [ ] Create `apps/api/src/platform/ports.ts` — provider-agnostic interfaces:
+- [x] Create `apps/api/src/platform/ports.ts` — provider-agnostic interfaces:
   - `DbPort` — returns the Drizzle-typed handle; signature matches `drizzle-orm/bun-sqlite`'s return type so services don't change when the driver swaps to `drizzle-orm/node-postgres`.
   - `SessionStorePort` — `{ get(key), set(key, value, ttlSeconds), delete(key), deleteByPrefix(prefix) }`.
   - `ObjectStoragePort` — `{ presignUpload({ key, mimeType, maxBytes, expiresInSec }), presignDownload(key, expiresInSec), head(key), delete(key) }`.
@@ -130,20 +130,20 @@ Goal: route handlers and services never touch `bun:sqlite`, the filesystem, or `
   - `SecretsPort` — `{ get(name): string }` (reads a validated env bag in local; AWS Secrets Manager later).
   - `Clock` — `{ now(): number }` (millis; injectable for tests).
   - `Ctx` — `{ db: DbPort; sessions: SessionStorePort; storage: ObjectStoragePort; email: EmailPort; secrets: SecretsPort; clock: Clock; env: "dev" | "test" | "prod"; requestId: string }`.
-- [ ] Create `apps/api/src/platform/local/` with one adapter per port:
+- [x] Create `apps/api/src/platform/local/` with one adapter per port:
   - `db.ts` — opens `bun:sqlite`, returns the Drizzle handle.
   - `sessions.ts` — backed by the `sessions` table with TTL enforcement on read; swept periodically by the cron worker (Phase 14).
   - `storage.ts` — filesystem under `STORAGE_DIR` (default `apps/api/.storage/`); presigning = HMAC of `key|method|expiresAt` with `SESSION_PEPPER`; URLs look like `http://localhost:8787/storage/<key>?exp=<ts>&sig=<hex>`.
   - `email.ts` — `send()` writes the rendered message to stdout (and to a `./.data/outbox/*.json` file for test assertions). Provider swap lives in Phase 11.
   - `secrets.ts` — reads a Zod-validated env bag from `process.env` once at startup.
   - `index.ts` — exports `createLocalContext({ env, requestId }): Ctx`.
-- [ ] Create `apps/api/src/platform/index.ts` — re-exports `Ctx` and the default adapter as `createContext`. Phase 15 adds `platform/aws/` and the switch here gates on `APP_ENV`.
-- [ ] Wire into `src/app.ts`: middleware order is `requestId → logger → ctx → errorHandler → routes`. `ctx` middleware sets `c.set("ctx", createContext({ env, requestId: c.get("requestId") }))`.
-- [ ] Update Hono generics: `new Hono<{ Variables: { ctx: Ctx; requestId: string; user?: User } }>()`.
-- [ ] Convention: services accept `ctx: Ctx` as their first argument (e.g. `createApplication(ctx, input)`). Routes read `const ctx = c.get("ctx")` and pass it in. No service file imports `bun:sqlite`, `node:fs`, or `process.env`.
-- [ ] Add an ESLint `no-restricted-imports` rule in `apps/api/eslint.config.js`: files under `src/routes/` and `src/services/` cannot import from `src/platform/local/**` or directly from `bun:sqlite` / `node:fs` — only from `src/platform` (the neutral barrel).
-- [ ] Verify: `grep -R "bun:sqlite\|node:fs\|process\.env" apps/api/src --include="*.ts" | grep -v "platform/local\|db/migrate\|server\.ts"` → empty.
-- [ ] Verify: throwing `new NotFoundError("student")` in a test route returns `{ error: { code: "not_found", ... }, request_id: "..." }` with status 404.
+- [x] Create `apps/api/src/platform/index.ts` — re-exports `Ctx` and the default adapter as `createContext`. Phase 15 adds `platform/aws/` and the switch here gates on `APP_ENV`.
+- [x] Wire into `src/app.ts`: middleware order is `requestId → logger → ctx → errorHandler → routes`. `ctx` middleware sets `c.set("ctx", createContext({ env, requestId: c.get("requestId") }))`.
+- [x] Update Hono generics: `new Hono<{ Variables: { ctx: Ctx; requestId: string; user?: User } }>()`.
+- [x] Convention: services accept `ctx: Ctx` as their first argument (e.g. `createApplication(ctx, input)`). Routes read `const ctx = c.get("ctx")` and pass it in. No service file imports `bun:sqlite`, `node:fs`, or `process.env`.
+- [x] Add an ESLint `no-restricted-imports` rule in `apps/api/eslint.config.js`: files under `src/routes/` and `src/services/` cannot import from `src/platform/local/**` or directly from `bun:sqlite` / `node:fs` — only from `src/platform` (the neutral barrel).
+- [x] Verify: `grep -R "bun:sqlite\|node:fs\|process\.env" apps/api/src --include="*.ts" | grep -v "platform/local\|db/migrate\|server\.ts"` → empty. (Also excluded `db/client` and `*.test.ts`; `db/client.ts` is a Phase 2 primitive that `platform/local/db.ts` wraps, and test files legitimately touch `node:fs` for tmp dirs.)
+- [x] Verify: throwing `new NotFoundError("student")` in a test route returns `{ error: { code: "not_found", ... }, request_id: "..." }` with status 404. (Covered by `src/middleware/error-handler.test.ts`.)
 - [ ] Commit: `feat(api): core middleware, error types, platform abstraction (local adapter)`.
 
 ## Phase 5 — Auth subsystem (self-built)

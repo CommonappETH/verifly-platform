@@ -621,4 +621,60 @@ SQLite has a `JSON1` extension that presents JSON columns, but Postgres's `jsonb
 
 Phase 4 — core API infrastructure: `errors.ts`, request-id / logger / error-handler middleware, `validate(schema, target)`, response helpers, and the 4.1 platform abstraction that finally wires `Ctx.db = toDrizzle(createDb(...))` into Hono.
 
+## 17. Backend Phase 4 — Core infra + platform abstraction (2026-04-23)
+
+### What shipped
+
+- **Error types** (`src/lib/errors.ts`): `AppError` with `status`, `code`, `message`, `details?`, plus `NotFoundError` (404 `not_found`), `ValidationError` (400 `validation_error`), `UnauthorizedError` (401), `ForbiddenError` (403), `ConflictError` (409), `RateLimitError` (429). Every thrown `AppError` carries enough metadata that the error-handler middleware can serialize it without branching on the class.
+- **Middleware**:
+  - `request-id.ts` — honours an incoming `X-Request-ID` (≤128 chars) or mints a `nanoid()`, stashes it on the Hono context, and echoes it on the response.
+  - `logger.ts` — single structured JSON line per request: `{ level, ts, request_id, method, path, status, duration_ms, user_id? }`. User id is read from `c.get("user")` so Phase 5 can fill it in without touching the logger.
+  - `error-handler.ts` — registered via `app.onError(...)`. `AppError` → `{ error: { code, message, details? }, request_id }` at the declared status; anything else → 500 `internal_error`, with `stack` included only when `env !== "prod"`. Always logs a structured `error`-level line so unknown failures still produce observable evidence.
+- **Validation + responses**: `lib/validate.ts` is a Hono middleware factory `validate(schema, "body"|"query"|"params")` that Zod-parses the target and throws `ValidationError` with `issues` in `details` on failure, or stores the parsed value on `c.set("validated_body" | "validated_query" | "validated_params")`. `lib/responses.ts` gives `ok`, `created`, `paginated`, `empty` — thin wrappers but they lock the envelope shape (`{ data }` / `{ data, page }`) so Phase 6's `@verifly/api-client` can type responses once.
+- **Platform abstraction (4.1)** — `src/platform/`:
+  - `ports.ts` — provider-agnostic interfaces: `DbPort` (hands back a `BunSQLiteDatabase<typeof schema>` today; the same return type is what `drizzle-orm/node-postgres` produces when Phase 15 swaps drivers), `SessionStorePort` (get/set/delete/deleteByPrefix with TTL enforced on read), `ObjectStoragePort` (presign upload/download, head, delete), `EmailPort`, `SecretsPort`, `Clock`, and the composite `Ctx`.
+  - `local/secrets.ts` — Zod schema over `process.env` (`APP_ENV`, `PORT`, `DATABASE_URL`, `SESSION_PEPPER`, `COOKIE_DOMAIN`, `ALLOWED_ORIGINS`, `STORAGE_DIR`) with safe defaults for dev. `loadEnv()` is the **only** code path that reads `process.env`; everything else pulls strings via `ctx.secrets.get(name)`.
+  - `local/db.ts` — wraps `createDb` + `toDrizzle` from Phase 2 behind `DbPort.handle()`.
+  - `local/sessions.ts` — SQLite-backed `SessionStorePort`. `get()` filters on `expires_at > now AND revoked_at IS NULL` so callers never see an expired row; `delete()` and `deleteByPrefix()` mark `revoked_at` rather than physically deleting, so the cron sweep in Phase 14 can keep audit-friendly history for as long as it wants.
+  - `local/storage.ts` — HMAC-signed URL math for Phase 8: `sign(pepper, "PUT|key|exp|mime|maxBytes")` for uploads, `sign(pepper, "GET|key|exp")` for downloads, with `timingSafeEqual` hex comparison and a strict `assertSafeKey` that blocks `..`, leading `/`, backslashes, and NUL bytes. `head` / `delete` hit the filesystem; the HTTP routes that actually stream bytes arrive in Phase 8.
+  - `local/email.ts` — logs every send as a structured JSON line and, outside `APP_ENV=prod`, drops a JSON file into `.data/outbox/` so tests can assert on it.
+  - `local/index.ts` — `createLocalContext({ requestId })` builds the `Ctx` once (singletons for db/sessions/storage/email/secrets/clock) and then per-request only the `requestId` differs. Exposes `resetLocalContext()` so tests can tear down the singleton between runs.
+  - `platform/index.ts` — re-exports the ports + `createContext({ requestId })`. Phase 15 adds an `aws` branch here gated on `APP_ENV`/`AWS_REGION`; route handlers never notice.
+- **`app.ts` wiring**: middleware order is `onError → requestId → logger → ctx → routes`. `createApp({ env, version? })` is the bootstrap — no `process.env.VERSION` inside the app; `server.ts` is the single place that reads it. Hono generics now carry `{ Variables: { requestId, ctx, user?, validated_* } }` so routes get typed `c.get("ctx")` for free.
+- **ESLint** (`apps/api/eslint.config.js`, backend-only, no React plugins): a `no-restricted-imports` rule under `src/routes/**` and `src/services/**` blocks imports from `**/platform/local/**`, `bun:sqlite`, and `node:fs*`. Routes and services have exactly one door: `@/platform`.
+
+### Why the shape of 4.1 matters
+
+The portability promise in the checklist is "swap ~5 files, not every route" when we move to AWS in Phase 15. That only holds if services can't reach past the neutral barrel. Three mechanics enforce it, in increasing strength:
+
+1. **Type gravity** — services accept `ctx: Ctx` as their first argument. The `Ctx` interface only mentions ports, never `Database` or `node:fs`. If a handler tries to use a concrete driver, TypeScript complains before the runtime does.
+2. **Single construction point** — `platform/index.ts:createContext` is the only function that instantiates adapters. Phase 15's `aws` branch slots in beside `local` and nothing else changes.
+3. **Lint boundary** — the `no-restricted-imports` rule catches the "oh I'll just import `bun:sqlite` here quickly" mistake. Without it, the type system would allow `import { Database } from "bun:sqlite"` in a route because TypeScript doesn't model which module is "allowed" — it just cares about the resulting types.
+
+The verification grep (`grep -RnE "bun:sqlite|node:fs|process\.env" src --include="*.ts" | grep -vE "platform/local|db/migrate|db/client|server\.ts|\.test\.ts"`) is the fast-feedback version of rule 3. CI will run it alongside `eslint` so both layers are green before merge.
+
+### Decisions & deviations
+
+- **`Ctx` is built per-request, adapters are singletons.** The first request lazily opens the SQLite handle, the storage dir, etc. Subsequent requests reuse them; only `requestId` differs. This avoids a per-request `new Database(...)` (which would reset WAL state every hit) without giving up the "everything comes from `ctx`" discipline. `resetLocalContext()` is exported for tests that need a clean slate.
+- **`EmailPort.send` returns `Promise<void>` and swallows nothing.** Phase 11 will wrap the call in a fire-and-forget helper that catches + logs so a flaky provider can't wedge a request; keeping the port itself strict means tests can `await` it deterministically.
+- **`BunSQLiteDatabase<typeof schema>` leaks into `DbPort`.** The checklist explicitly says the signature should match `drizzle-orm/bun-sqlite`'s return so services don't change when the driver swaps. In Phase 15, `DbHandle` becomes `BunSQLiteDatabase<typeof schema> | NodePgDatabase<typeof schema>` (or a narrower intersection) and queries that only use portable Drizzle features keep compiling. If a query does need a driver-specific escape hatch, we'll push it into a service method that the `aws` adapter can override — the port stays stable.
+- **Storage signing uses `SESSION_PEPPER`, not a separate key.** One high-entropy secret covers both the session-token HMAC (Phase 5) and the signed-URL HMAC (Phase 8). Rotating one rotates both. The payloads are domain-separated by the `PUT|`/`GET|` prefix so a download-signed URL can't be replayed as an upload.
+- **`validate()` stores parsed input on `c` rather than passing it through a typed wrapper.** Hono's context-variable approach is slightly less type-safe than `createFactory`/zod-openapi, but it keeps routes readable (`const body = c.get("validated_body") as CreateStudent`) and doesn't force a handler-signature generic that leaks into every route file. Phase 7 will add a tiny typed getter if the cast boilerplate becomes noisy.
+
+### Verification ran
+
+- `bun run typecheck` — clean.
+- `bun test` — 6 pass / 0 fail (pragmas + the new `error-handler.test.ts` covering AppError serialization and unknown-error 500 in `prod`).
+- Isolation audit: `grep -RnE "bun:sqlite|node:fs|process\.env" src --include="*.ts" | grep -vE "platform/local|db/migrate|db/client|server\.ts|\.test\.ts"` → empty.
+
+### Gotchas to remember
+
+- **Don't call `createContext` outside the ctx middleware.** Migrations (`src/db/migrate.ts`) and the CLI scripts coming in Phase 14 still open their own `bun:sqlite` handles directly — those are explicitly allowed (they're entry points, not request handlers) and are excluded from the isolation grep by path.
+- **Don't throw non-`AppError` instances for user-facing failures.** The error-handler treats anything that isn't an `AppError` as a 500, which is the right default for bugs but wrong for e.g. auth failures. If you need a new status/code, add a subclass to `errors.ts`.
+- **Don't log `ctx.secrets.get("SESSION_PEPPER")` or any raw env value.** The logger middleware intentionally has no "dump env" branch; adding one is a footgun waiting to happen.
+- **Don't import from `@/platform/local/*` in routes or services.** The ESLint rule will flag it; the grep will flag it; Phase 15's adapter swap will silently break if either escape hatch slips in.
+
+### Next up
+
+Phase 5 — auth subsystem: argon2id password hashing with `SESSION_PEPPER` mixed in, SQLite-backed session store using the `ctx.sessions` port, `/auth/*` routes, `requireAuth`/`requireRole` middleware, CSRF double-submit, and the rate limiter on top of the `rate_limits` table.
 

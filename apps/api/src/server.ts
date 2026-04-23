@@ -1,7 +1,9 @@
 import { createApp } from "./app";
+import { loadEnv } from "./platform/local/secrets";
 
-const port = Number(process.env.PORT ?? 8787);
-const app = createApp({ env: "dev" });
+const env = loadEnv();
+const port = Number(env.PORT);
+const app = createApp({ env: env.APP_ENV, version: process.env.VERSION });
 
 Bun.serve({ fetch: app.fetch, port });
 
