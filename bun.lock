@@ -81,6 +81,7 @@
     "apps/admin": {
       "name": "@verifly/admin",
       "dependencies": {
+        "@verifly/api-client": "workspace:*",
         "@verifly/types": "workspace:*",
         "@verifly/ui": "workspace:*",
         "@verifly/utils": "workspace:*",
@@ -109,6 +110,7 @@
     "apps/bank": {
       "name": "@verifly/bank",
       "dependencies": {
+        "@verifly/api-client": "workspace:*",
         "@verifly/types": "workspace:*",
         "@verifly/ui": "workspace:*",
         "@verifly/utils": "workspace:*",
@@ -120,6 +122,7 @@
     "apps/counselor": {
       "name": "@verifly/counselor",
       "dependencies": {
+        "@verifly/api-client": "workspace:*",
         "@verifly/types": "workspace:*",
         "@verifly/ui": "workspace:*",
         "@verifly/utils": "workspace:*",
@@ -131,6 +134,7 @@
     "apps/student": {
       "name": "@verifly/student",
       "dependencies": {
+        "@verifly/api-client": "workspace:*",
         "@verifly/types": "workspace:*",
         "@verifly/ui": "workspace:*",
         "@verifly/utils": "workspace:*",
@@ -142,9 +146,20 @@
     "apps/university": {
       "name": "@verifly/university",
       "dependencies": {
+        "@verifly/api-client": "workspace:*",
         "@verifly/types": "workspace:*",
         "@verifly/ui": "workspace:*",
         "@verifly/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@verifly/config": "workspace:*",
+      },
+    },
+    "packages/api-client": {
+      "name": "@verifly/api-client",
+      "version": "0.0.0",
+      "dependencies": {
+        "@verifly/types": "workspace:*",
       },
       "devDependencies": {
         "@verifly/config": "workspace:*",
@@ -795,6 +810,8 @@
     "@verifly/admin": ["@verifly/admin@workspace:apps/admin"],
 
     "@verifly/api": ["@verifly/api@workspace:apps/api"],
+
+    "@verifly/api-client": ["@verifly/api-client@workspace:packages/api-client"],
 
     "@verifly/bank": ["@verifly/bank@workspace:apps/bank"],
 

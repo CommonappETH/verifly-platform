@@ -1,0 +1,7 @@
+{
+  "extends": "@verifly/config/tsconfig.base.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

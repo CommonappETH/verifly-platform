@@ -721,3 +721,73 @@ Phase 5 — auth subsystem: argon2id password hashing with `SESSION_PEPPER` mixe
 ### Next up
 
 Phase 6 — `packages/api-client`: typed fetch wrapper, per-endpoint functions, CSRF auto-injection from the `csrf` cookie. Then Phase 7 domain routes start consuming it.
+
+---
+
+## §19 — Phase 6: Shared API client package (`@verifly/api-client`)
+
+### What was done
+
+Created `packages/api-client/` — a typed, zero-dependency (beyond `@verifly/types`) fetch wrapper that all 5 frontend apps share to talk to the API.
+
+**Files created:**
+
+| File | Purpose |
+|------|---------|
+| `package.json` | `@verifly/api-client`, workspace dep on `@verifly/types` |
+| `tsconfig.json` | Extends `@verifly/config/tsconfig.base.json`, no `vite/client` types (pure TS, no DOM assumptions beyond `fetch` + `document.cookie`) |
+| `src/client.ts` | `createClient({ baseUrl })` → `{ get, post, patch, put, del }` with auto CSRF injection |
+| `src/errors.ts` | `ApiError` (mirrors server error envelope) + `NetworkError` (fetch failures) |
+| `src/types/index.ts` | Re-exports all `@verifly/types` + wire DTOs: `PublicUser`, `AuthUserResponse`, `DataResponse<T>`, `PaginatedResponse<T>`, `DocumentUploadResponse`, `DocumentDetailResponse` |
+| `src/endpoints/auth.ts` | `register`, `login`, `logout`, `me`, `forgotPassword`, `resetPassword`, `changePassword` |
+| `src/endpoints/students.ts` | CRUD + guardians sub-resource |
+| `src/endpoints/applications.ts` | CRUD + list with status filter |
+| `src/endpoints/verifications.ts` | CRUD + `submit`, `decide`, `lookupByCode` |
+| `src/endpoints/documents.ts` | `create`, `complete`, `get`, `review`, `delete` |
+| `src/endpoints/users.ts` | `me`, `update`, `delete` (Phase 7.1 endpoints) |
+| `src/endpoints/organizations.ts` | `list`, `get`, `create`, `update` (Phase 7.3 endpoints) |
+| `src/index.ts` | Barrel + `createVeriflyClient()` convenience factory that attaches all endpoint groups |
+
+Added `"@verifly/api-client": "workspace:*"` to all 5 app `package.json` files.
+
+### Why it was done
+
+The checklist mandates a typed client package so that:
+1. **Frontend integration (Phase 10)** can swap mock data for real API calls by importing from `@verifly/api-client` instead of per-app fetch wrappers.
+2. **Type safety flows end-to-end** — server Zod schemas define the truth; the client types mirror those shapes; frontends import the mirror. A backend DTO change breaks the client at compile time, not at runtime.
+3. **CSRF is handled once** — the `csrf` cookie is read from `document.cookie` and injected as `X-CSRF-Token` on every mutating request. No frontend needs to know how CSRF works.
+
+### How it works
+
+**`createClient({ baseUrl })`** returns a thin wrapper around `fetch`:
+- `get/post/patch/put/del` methods that serialize JSON, set `credentials: "include"` (cookies travel cross-origin), and parse the response.
+- On non-GET requests, the client reads the `csrf` cookie from `document.cookie` and attaches `X-CSRF-Token`. If `document` is undefined (SSR), it skips — the server will reject the request anyway, which is correct because CSRF protection is browser-only.
+- On error responses (non-2xx), the JSON body is parsed as the server's `{ error: { code, message, details? }, request_id }` envelope and thrown as an `ApiError` with helper getters (`.isUnauthorized`, `.isNotFound`, etc.).
+- On network failures (DNS, timeout, offline), a `NetworkError` is thrown so callers can distinguish "server said no" from "couldn't reach server".
+
+**`createVeriflyClient({ baseUrl })`** is a convenience that creates the base client and attaches all endpoint groups as properties (`client.auth.login(...)`, `client.students.list(...)`, etc.). Apps can use either the raw client or the grouped one.
+
+**Endpoint functions** are thin: they call the right HTTP method on the right path with the right types. The `list` endpoints spread params into a `{ ...params }` literal to satisfy TypeScript's index-signature requirement for query parameters.
+
+### Key concepts
+
+- **Workspace protocol (`workspace:*`)** — Bun resolves `@verifly/api-client` from `packages/api-client/` at install time. No version to bump; changes are instant.
+- **`exports: { ".": "./src/index.ts" }`** — Bun and Vite both resolve the raw TS source at dev time (no build step needed for the package).
+- **Wire DTOs vs domain types** — `@verifly/types` defines the canonical shapes apps use internally. The client's `src/types/` re-exports those and adds wire-specific wrappers (`AuthUserResponse`, `PaginatedResponse<T>`) that match the server's JSON envelope format. This keeps domain types clean.
+
+### Best practices
+
+- **Endpoint functions accept camelCase input** (e.g. `newPassword`) and internally map to the server's expected keys (e.g. `new_password`). Callers don't need to know the wire format.
+- **Query params use `{ ...params }` spread** to convert typed interfaces into index-signature-compatible objects. This is a TypeScript strictness workaround, not a runtime concern.
+- **`ApiError` vs `NetworkError`** — always catch both when making API calls. `ApiError` means the server responded; `NetworkError` means it didn't.
+
+### Gotchas to remember
+
+- **Don't import `@verifly/api-client` in `apps/api`** — the API server doesn't consume its own client. The client is for frontends only.
+- **Endpoint files for Phase 7 routes (`users.ts`, `organizations.ts`)** are pre-created with the expected shapes. If Phase 7 changes the response format, the client types must be updated to match.
+- **The `put` method exists** for signed-URL uploads (Phase 8) — it's not used by any endpoint function yet but the raw `client.put()` will be needed when frontends upload directly to the storage route.
+- **`tsconfig.json` sets `types: []`** to avoid pulling in `vite/client` from the base config — this package runs in any JS environment, not just Vite-served pages.
+
+### Next up
+
+Phase 7 — Domain APIs: users/students/organizations/applications/verifications/documents routes + services, with the application state machine.

@@ -202,16 +202,16 @@ Goal: route handlers and services never touch `bun:sqlite`, the filesystem, or `
 
 ## Phase 6 — Shared API client package
 
-- [ ] Create `packages/api-client/`:
-  - [ ] `package.json` — name `@verifly/api-client`, exports `./src/index.ts`.
-  - [ ] `tsconfig.json` extending `@verifly/config/tsconfig.base.json`.
-  - [ ] `src/client.ts` — typed `fetch` wrapper: `createClient({ baseUrl, credentials: "include" })` returning `{ get, post, patch, del }`. Auto-injects `X-CSRF-Token` from the `csrf` cookie.
-  - [ ] `src/errors.ts` — mirror of server error codes as `ApiError`.
-  - [ ] `src/types/*` — re-exports `@verifly/types` plus wire DTOs (e.g. paginated wrapper).
-  - [ ] `src/endpoints/auth.ts`, `students.ts`, `applications.ts`, `verifications.ts`, `documents.ts` — one function per server route, fully typed.
-  - [ ] `src/index.ts` — barrel.
-- [ ] Add `@verifly/api-client` as a dep in each of the 5 apps' `package.json`.
-- [ ] Verify: `bun install` at root; types resolve in each app.
+- [x] Create `packages/api-client/`:
+  - [x] `package.json` — name `@verifly/api-client`, exports `./src/index.ts`.
+  - [x] `tsconfig.json` extending `@verifly/config/tsconfig.base.json`.
+  - [x] `src/client.ts` — typed `fetch` wrapper: `createClient({ baseUrl, credentials: "include" })` returning `{ get, post, patch, del }`. Auto-injects `X-CSRF-Token` from the `csrf` cookie.
+  - [x] `src/errors.ts` — mirror of server error codes as `ApiError`.
+  - [x] `src/types/*` — re-exports `@verifly/types` plus wire DTOs (e.g. paginated wrapper).
+  - [x] `src/endpoints/auth.ts`, `students.ts`, `applications.ts`, `verifications.ts`, `documents.ts` — one function per server route, fully typed. (Also added `users.ts` and `organizations.ts` to cover Phase 7 endpoints.)
+  - [x] `src/index.ts` — barrel.
+- [x] Add `@verifly/api-client` as a dep in each of the 5 apps' `package.json`.
+- [x] Verify: `bun install` at root; types resolve in each app.
 - [ ] Commit: `feat(api-client): typed cross-app client package`.
 
 ## Phase 7 — Domain APIs

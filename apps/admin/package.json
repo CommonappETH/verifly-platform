@@ -12,6 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@verifly/api-client": "workspace:*",
     "@verifly/types": "workspace:*",
     "@verifly/ui": "workspace:*",
     "@verifly/utils": "workspace:*"
