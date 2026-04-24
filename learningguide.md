@@ -1067,3 +1067,19 @@ The old `bank/src/lib/api.ts` mock shim will be deleted during the bank migratio
 ### Next up
 
 Phase 10 step 2 — migrate the `@verifly/university` portal off mocks. Start with `src/lib/types.ts` mock generators; bind `applicants`, `applications`, `decisions` routes to `apiClient.applications.*`; walk the university golden path in a browser with the API running.
+
+### Resume point (paused 2026-04-24)
+
+Paused mid-Phase 10 at user request. Two open questions to resolve before step 2 begins:
+
+1. **Seed data:** should we implement a minimal `bun run db:seed` now (formally Phase 14.3 scope) — admin + one university org + a linked `university_user` + one bank org + a linked `bank_user` + a couple of students — so the user can dogfood each portal without curling `/auth/register` by hand? Or register accounts through the frontends manually?
+2. **Scope of the university migration:** routes `messages` / `reports` / `scholarships` have no backend parity yet. Leave them wired to their existing mocks with a `// TODO: Phase 11+` comment, or stub them to empty states until their backends exist?
+
+Once both are answered, the per-app dogfooding loop is:
+
+1. `cd apps/api && bun run dev` (copy `.env.example` → `.env` first if not already; defaults boot, but `ALLOWED_ORIGINS` must include the app's dev port).
+2. `cd apps/university && bun run dev` in another terminal.
+3. Assistant migrates `src/lib/types.ts` mock generators + the 3 in-scope route files; user reloads and walks the golden path; assistant fixes DTO mismatches in `@verifly/api-client` / `@verifly/types` as they surface.
+4. Commit per app: `refactor(university): replace mocks with @verifly/api-client`.
+
+Migration order agreed with user: **university → bank → student → counselor → admin**.
