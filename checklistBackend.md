@@ -150,54 +150,54 @@ Goal: route handlers and services never touch `bun:sqlite`, the filesystem, or `
 
 ### 5.1 — Password hashing
 
-- [ ] Create `apps/api/src/lib/crypto/password.ts`:
+- [x] Create `apps/api/src/lib/crypto/password.ts`:
   - `hashPassword(plain: string): Promise<string>` — argon2id via `@noble/hashes/argon2` with `t=3, m=65536, p=1`, salt from `crypto.getRandomValues(16)`. Return format: `argon2id$v=19$m=65536,t=3,p=1$<salt_b64>$<hash_b64>`.
   - `verifyPassword(plain: string, stored: string): Promise<boolean>` — parse format, re-hash, constant-time compare.
   - Export `PASSWORD_MIN_LEN = 12`.
   - Mixes `SESSION_PEPPER` (from `ctx.secrets`) into the hash input so a DB-only dump is not enough to attempt offline cracking.
-- [ ] Unit tests (`password.test.ts`): hash→verify round trip, wrong password fails, malformed stored string rejects, pepper mismatch fails.
+- [x] Unit tests (`password.test.ts`): hash→verify round trip, wrong password fails, malformed stored string rejects, pepper mismatch fails.
 
 ### 5.2 — Session store (SQLite-backed)
 
-- [ ] Create `apps/api/src/services/sessions.ts` (uses `ctx.sessions` + `ctx.db` + `ctx.clock`):
+- [x] Create `apps/api/src/services/sessions.ts` (uses `ctx.sessions` + `ctx.db` + `ctx.clock`):
   - `createSession(ctx, { userId, ip, userAgent }): Promise<{ token, expiresAt }>` — generate 32 random bytes, base64url-encode as `token`; store `{ userId, createdAt, ip, userAgent }` under key `SHA-256(token)` via `ctx.sessions.set(..., ttlSeconds=2_592_000)`. The local adapter writes to the `sessions` table with `expires_at = ctx.clock.now() + ttl*1000`.
   - `readSession(ctx, token): Promise<SessionRecord | null>` — `ctx.sessions.get(SHA-256(token))`; the local adapter filters out rows with `expires_at <= now` or `revoked_at not null`.
   - `revokeSession(ctx, token): Promise<void>`.
   - `revokeAllForUser(ctx, userId): Promise<void>` — `ctx.sessions.deleteByPrefix(...)` (local adapter: `UPDATE sessions SET revoked_at = now WHERE user_id = ?`).
-- [ ] Unit tests: create → read → revoke flow; expired session returns null; revoked session returns null.
+- [x] Unit tests: create → read → revoke flow; expired session returns null; revoked session returns null.
 
 ### 5.3 — Auth routes
 
-- [ ] Create `apps/api/src/routes/auth/index.ts` — a Hono sub-router mounted at `/auth`.
-- [ ] `POST /auth/register` — body `{ email, password, role, name }`. Zod validate. 409 if email exists. Hash password, insert `users`. **Do not auto-login** (enumeration defense). Response: `{ user: { id, email, role, name } }`. Side effect: enqueue verify email via `ctx.email.send(...)` (console log in local until Phase 11).
-- [ ] `POST /auth/login` — body `{ email, password }`. Lookup by email, verify password in constant time (run dummy verify if user missing). On success create session, set `sid=<token>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`. Response: `{ user: {...} }`. Fail: 401, generic message.
-- [ ] `POST /auth/logout` — read `sid`, revoke, clear cookie.
-- [ ] `GET /auth/me` — requires auth; returns current user.
-- [ ] `POST /auth/password/forgot` — body `{ email }`. Always 204 (no enumeration). If user exists, create `password_resets` row with 1-hour TTL; log/email the reset link.
-- [ ] `POST /auth/password/reset` — body `{ token, new_password }`. Verify, update hash, mark used, revoke all sessions for the user.
-- [ ] `POST /auth/password/change` — auth required. Body `{ current_password, new_password }`. Verify current, update, revoke other sessions.
+- [x] Create `apps/api/src/routes/auth/index.ts` — a Hono sub-router mounted at `/auth`.
+- [x] `POST /auth/register` — body `{ email, password, role, name }`. Zod validate. 409 if email exists. Hash password, insert `users`. **Do not auto-login** (enumeration defense). Response: `{ user: { id, email, role, name } }`. Side effect: enqueue verify email via `ctx.email.send(...)` (console log in local until Phase 11).
+- [x] `POST /auth/login` — body `{ email, password }`. Lookup by email, verify password in constant time (run dummy verify if user missing). On success create session, set `sid=<token>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=2592000`. Response: `{ user: {...} }`. Fail: 401, generic message.
+- [x] `POST /auth/logout` — read `sid`, revoke, clear cookie.
+- [x] `GET /auth/me` — requires auth; returns current user.
+- [x] `POST /auth/password/forgot` — body `{ email }`. Always 204 (no enumeration). If user exists, create `password_resets` row with 1-hour TTL; log/email the reset link.
+- [x] `POST /auth/password/reset` — body `{ token, new_password }`. Verify, update hash, mark used, revoke all sessions for the user.
+- [x] `POST /auth/password/change` (deviation: revokes all sessions then re-issues one for the current cookie, rather than filtering out the current session — covered in learningguide §18) — auth required. Body `{ current_password, new_password }`. Verify current, update, revoke other sessions.
 
 ### 5.4 — Auth middleware & RBAC
 
-- [ ] Create `apps/api/src/middleware/auth.ts`:
+- [x] Create `apps/api/src/middleware/auth.ts`:
   - `requireAuth` — reads `sid` cookie, calls `readSession`, attaches `c.set("user", user)` or throws `UnauthorizedError`.
   - `requireRole(...roles)` — factory throwing `ForbiddenError` on mismatch.
   - `requireSelfOrRole(paramName, ...roles)` — allows if `params[paramName] === user.id` OR role matches.
-- [ ] Create `apps/api/src/middleware/csrf.ts`:
+- [x] Create `apps/api/src/middleware/csrf.ts`:
   - Issue a CSRF token on login (cookie `csrf=<random>; SameSite=Lax` readable by JS).
   - On `POST`/`PATCH`/`PUT`/`DELETE`, require header `X-CSRF-Token` to equal the cookie. GET exempt.
   - Skip CSRF for routes tagged `{ public: true }` (e.g. `/auth/login`, `/auth/register`, `/auth/password/forgot`).
 
 ### 5.5 — Rate limiting
 
-- [ ] Create `apps/api/src/middleware/rate-limit.ts` using the `rate_limits` table (windowed counters keyed by `ip:<route>` or `user:<id>:<route>`). Atomic `INSERT ON CONFLICT DO UPDATE SET count = count + 1` inside a transaction; window resets when `now - window_start > window_ms`.
-- [ ] Stricter limits on `/auth/login`, `/auth/register`, `/auth/password/forgot` (10 / 15 min / IP).
-- [ ] Default limit (120 req/min/user) on everything else.
-- [ ] Verify: hammering `/auth/login` with wrong password trips the limit and returns 429.
+- [x] Create `apps/api/src/middleware/rate-limit.ts` using the `rate_limits` table (windowed counters keyed by `ip:<route>` or `user:<id>:<route>`). Atomic `INSERT ON CONFLICT DO UPDATE SET count = count + 1` inside a transaction; window resets when `now - window_start > window_ms`.
+- [x] Stricter limits on `/auth/login`, `/auth/register`, `/auth/password/forgot` (10 / 15 min / IP).
+- [ ] Default limit (120 req/min/user) on everything else. (Deferred to Phase 7: needs to sit after auth so it can subject on user.id; applying by-IP globally would trigger on `/health` and break CI smoke tests. The middleware factory is ready to be mounted per-router in Phase 7.)
+- [x] Verify: hammering `/auth/login` with wrong password trips the limit and returns 429. (Integration test in `src/routes/auth/auth.test.ts`.)
 
 ### 5.6 — Auth integration check
 
-- [ ] End-to-end test: register → login → GET `/auth/me` with cookie → logout → GET `/auth/me` → 401.
+- [x] End-to-end test: register → login → GET `/auth/me` with cookie → logout → GET `/auth/me` → 401. (`src/routes/auth/auth.test.ts`.)
 - [ ] Commit: `feat(api): self-built auth (argon2 + pepper, SQLite sessions, CSRF, rate limit)`.
 
 ## Phase 6 — Shared API client package

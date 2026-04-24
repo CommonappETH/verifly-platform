@@ -21,6 +21,7 @@ export default tseslint.config(
   },
   {
     files: ["src/routes/**/*.ts", "src/services/**/*.ts"],
+    ignores: ["**/*.test.ts"],
     rules: {
       "no-restricted-imports": [
         "error",

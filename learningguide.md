@@ -678,3 +678,46 @@ The verification grep (`grep -RnE "bun:sqlite|node:fs|process\.env" src --includ
 
 Phase 5 — auth subsystem: argon2id password hashing with `SESSION_PEPPER` mixed in, SQLite-backed session store using the `ctx.sessions` port, `/auth/*` routes, `requireAuth`/`requireRole` middleware, CSRF double-submit, and the rate limiter on top of the `rate_limits` table.
 
+## 18. Backend Phase 5 — Self-built auth (2026-04-23)
+
+### What shipped
+
+- **Password hashing** (`src/lib/crypto/password.ts`): argon2id via `@noble/hashes/argon2` with `t=3, m=65536, p=1`, 16-byte random salt, 32-byte hash. Stored format: `argon2id$v=19$m=65536,t=3,p=1$<salt_b64>$<hash_b64>`. The plaintext is mixed with `SESSION_PEPPER` before hashing (`pepper + "$" + password`), so a DB-only dump can't be offline-cracked without the server secret. Exposes `hashPassword`, `verifyPassword` (constant-time compare on the 32-byte hash), `PASSWORD_MIN_LEN = 12`, and a pre-computed `DUMMY_HASH` that the login route runs when the user lookup misses so the timing signature doesn't leak account existence.
+- **Session service** (`src/services/sessions.ts`): 32 random bytes → base64url token on `createSession`; DB key is `SHA-256(token)` so the raw token never lands on disk. `readSession` / `revokeSession` hash the incoming token the same way; `revokeAllForUser` updates `revoked_at` for every session owned by the user. TTL is 30 days. The service is the only caller of `ctx.sessions` — routes don't touch the port directly.
+- **Users service** (`src/services/users.ts`): `findUserByEmail`, `findUserById`, `createUser` (nanoid PK, timestamps from `ctx.clock`), `updatePasswordHash`, `toPublicUser`. Emails are lowercased + trimmed at the service boundary so the DB's `UNIQUE` constraint doesn't see two rows that differ only by case.
+- **Password-reset service** (`src/services/password-resets.ts`): 32-byte token returned to the caller in plaintext, SHA-256 hash persisted. `consumePasswordReset` atomically checks `expiresAt > now AND usedAt IS NULL`, marks `usedAt`, returns the `userId`. 1-hour TTL.
+- **Auth middleware** (`src/middleware/auth.ts`): `requireAuth()` reads the `sid` cookie → `readSession` → `findUserById` → sets `c.user = { id, role }`. `requireRole(...roles)` and `requireSelfOrRole(param, ...roles)` build on top. Missing cookie, expired session, or deleted user all surface as `UnauthorizedError`.
+- **CSRF middleware** (`src/middleware/csrf.ts`): double-submit cookie + header pattern. Mutating methods must carry matching `csrf` cookie (JS-readable, set on login) and `X-CSRF-Token` header. GET/HEAD/OPTIONS exempt; public auth endpoints (`login`, `register`, `password/forgot`, `password/reset`, `logout`) are exempted via a path matcher wired in `app.ts`.
+- **Rate-limit middleware** (`src/middleware/rate-limit.ts`): window-counter table (`rate_limits`) with an atomic `INSERT ... ON CONFLICT DO UPDATE` that either increments the count (same window) or resets to 1 (new window). `by: "ip" | "user"` picks the subject; route-level `name` scopes the rule. Emits `Retry-After` on `429`.
+- **Routes** (`src/routes/auth/index.ts`): `POST /auth/register` (201, no auto-login), `POST /auth/login` (sets `sid` + `csrf` cookies), `POST /auth/logout` (revoke + clear), `GET /auth/me` (requireAuth), `POST /auth/password/forgot` (always 204, email dispatched via `ctx.email.send` when user exists), `POST /auth/password/reset`, `POST /auth/password/change` (requireAuth, revokes all sessions then re-issues one for the current device). Register and login and forgot each have a per-IP rate limit of 10 / 15 min.
+- **Wiring** (`src/app.ts`): middleware chain is now `onError → requestId → logger → ctx → csrf → routes`. Added `createCtx?: ({ requestId }) => Ctx` to `AppBootstrap` so tests can inject a harness-built `Ctx` without tripping the singleton cache in `platform/local/index.ts`.
+- **Test harness** (`src/testing/harness.ts`): tmp-dir SQLite + applied migrations + local adapters, with `setNow` / `advance` for time-travel tests. Used by session, auth, and (future) domain tests so every suite gets an isolated, freshly-migrated DB.
+
+### Why it's shaped this way
+
+- **`SESSION_PEPPER` does double duty for passwords and HMAC-signed URLs.** One high-entropy secret to rotate; payload prefixes (`PUT|` / `GET|` for storage, `pepper$password` vs. token HMAC) keep the domains separated so cross-protocol confusion attacks don't apply.
+- **Session keys are `SHA-256(token)`, not the token itself.** A full DB read-out gets an attacker hashes — useless for minting cookies without a hash collision. This also means `revokeAllForUser` can't use the `SessionStorePort.deleteByPrefix` primitive (keys aren't user-prefixed); it goes through `ctx.db.handle()` to flip `revoked_at`. Acceptable portability cost: the future DynamoDB adapter will add a GSI on `user_id` to serve the same query without a table scan.
+- **Login always runs argon2 — even when the email is unknown.** The `DUMMY_HASH` constant makes the "user not found" path spend the same ~1.5s as a real verify. This matters for enumeration but it's also why the rate-limit integration test needed a 30s `bun test` timeout: 11 back-to-back logins × ~1s each blew through the default 5s. Production is fine because real users aren't doing 11 failed logins in a row; the test exercises the upper bound on purpose.
+- **Password change revokes every session for the user, including the current one, then re-issues a session for the current cookie.** Checklist 5.3 says "revoke other sessions"; revoking *all* and re-minting one is simpler and covers the same threat model (lateral hijacking from a stolen session elsewhere) without having to map cookie → session id → "other" set.
+- **Register doesn't auto-login.** Pairs with "login returns generic 401 on wrong password" — no timing-free oracle that tells an attacker whether an email is registered. The welcome email goes out via `ctx.email.send`, which in local mode writes a JSON file to `.data/outbox/` so tests can assert on it without SMTP.
+- **ESLint rule exempts test files** (`**/*.test.ts`). Test harnesses must reach into `platform/local/*` and `node:fs` to build isolated fixtures; the production path still can't.
+
+### Verification ran
+
+- `bun run typecheck` — clean.
+- `bun run lint` — clean.
+- `bun test` — 23 pass / 0 fail across 5 files (pragmas, error-handler, password, sessions, auth integration).
+- Auth E2E: register → login → `/auth/me` → logout → `/auth/me` 401. Duplicate registration → 409. Wrong-password login → 401. CSRF missing → 403. `/password/forgot` always 204. Login rate limit trips at the 11th attempt and returns 429.
+- Isolation grep still empty (excluding `platform/local`, `db/{migrate,client}`, `server.ts`, `*.test.ts`, and `testing/harness.ts`).
+
+### Gotchas to remember
+
+- **Don't lower the argon2 cost for faster tests "just this once".** The timing-equivalence between known-good and DUMMY_HASH logins depends on the cost matching — if tests use `t=1, m=1024` but prod uses `t=3, m=65536`, a differential-timing attack suddenly has leverage in prod. If test wall-clock becomes a problem, cut the number of iterations in the test, not the cost.
+- **Don't store raw session tokens anywhere.** The service hashes before talking to `ctx.sessions`; routes hand raw tokens to the cookie setter but never to services.
+- **Don't add a "user role" check in `/auth/me` that short-circuits admins past `findUserById`.** The lookup confirms the user still exists (and isn't soft-deleted); removing it would leave orphaned session cookies authenticating dead accounts.
+- **Don't set `secure: true` on cookies in `env === "test"`.** The integration test drives `app.request(new Request("http://local/..."))`, which is plain HTTP; `Secure` cookies would silently drop. Cookies are `secure: true` only when `ctx.env === "prod"`.
+- **Don't remove the CSRF exemption list in `app.ts` without reviewing every public endpoint.** `/auth/login` and `/auth/register` mint the CSRF cookie — they can't require a CSRF header or nobody could ever log in. Same for `/password/reset` (token auth, not session). `/logout` is exempt so a compromised session can still be terminated from a client that lost its CSRF cookie.
+
+### Next up
+
+Phase 6 — `packages/api-client`: typed fetch wrapper, per-endpoint functions, CSRF auto-injection from the `csrf` cookie. Then Phase 7 domain routes start consuming it.
