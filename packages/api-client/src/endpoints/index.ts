@@ -7,6 +7,16 @@ export type { AuthEndpoints, RegisterInput, LoginInput, ForgotPasswordInput, Res
 export { documentEndpoints } from "./documents";
 export type { DocumentEndpoints, CreateDocumentInput, ReviewDocumentInput } from "./documents";
 
+export { portalEndpoints } from "./portal";
+export type {
+  PortalEndpoints,
+  StudentDashboard,
+  UniversityDashboard,
+  BankDashboard,
+  CounselorDashboard,
+  AdminDashboard,
+} from "./portal";
+
 export { organizationEndpoints } from "./organizations";
 export type { OrganizationEndpoints, Organization, CreateOrganizationInput, UpdateOrganizationInput, ListOrganizationsParams } from "./organizations";
 

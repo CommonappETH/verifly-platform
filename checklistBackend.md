@@ -301,12 +301,12 @@ All routes live under `apps/api/src/routes/`. Each module owns: route definition
 
 Each portal has dashboard views that would otherwise need 3+ round-trips. Add thin aggregates.
 
-- [ ] `GET /portal/student/dashboard` — counts: active applications, pending verifications, outstanding documents; plus last 10 audit entries touching the student.
-- [ ] `GET /portal/university/dashboard` — counts by application status, last 10 submissions, verifications pending review.
-- [ ] `GET /portal/bank/dashboard` — counts of `pending`/`under_review` verifications, last 10 decisions, median time-to-decision.
-- [ ] `GET /portal/counselor/dashboard` — list of the counselor's students with application-progress summaries.
-- [ ] `GET /portal/admin/dashboard` — platform-wide counts (users by role, applications by status, verifications by status, error rate last 24h).
-- [ ] Each endpoint reuses Phase 7 services; no raw SQL outside the service layer.
+- [x] `GET /portal/student/dashboard` — counts: active applications, pending verifications, outstanding documents; plus last 10 audit entries touching the student.
+- [x] `GET /portal/university/dashboard` — counts by application status, last 10 submissions, verifications pending review.
+- [x] `GET /portal/bank/dashboard` — counts of `pending`/`under_review` verifications, last 10 decisions, median time-to-decision.
+- [x] `GET /portal/counselor/dashboard` — list of the counselor's students with application-progress summaries. (No counselor↔student mapping table yet — returns all non-deleted students, matching the broad counselor read access already used in `routes/applications`. Narrow by school mapping in a later phase.)
+- [x] `GET /portal/admin/dashboard` — platform-wide counts (users by role, applications by status, verifications by status, error rate last 24h). (`errorRateLast24h` returns `null` until Phase 12's `request_metrics` table exists; the field is declared now so the admin frontend can bind against the stable DTO shape.)
+- [x] Each endpoint reuses Phase 7 services; no raw SQL outside the service layer. (All aggregation lives in `src/services/portal-dashboards.ts` via Drizzle query builder.)
 - [ ] Commit: `feat(api): portal dashboard aggregates`.
 
 ## Phase 10 — Frontend integration

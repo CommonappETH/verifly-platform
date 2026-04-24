@@ -930,3 +930,65 @@ The presigned URL pattern is essential for the portability contract: on AWS (Pha
 ### Next up
 
 Phase 9 — Role-scoped aggregate endpoints: dashboard views for each portal (student, university, bank, counselor, admin).
+
+---
+
+## §21 — Phase 9: Role-scoped portal dashboards
+
+### What was done
+
+Added five aggregate GET endpoints — one per portal — so each frontend can render a dashboard in a single round-trip instead of composing 3+ parallel list calls.
+
+New files:
+
+- `apps/api/src/services/portal-dashboards.ts` — one service function per portal (`getStudentDashboard`, `getUniversityDashboard`, `getBankDashboard`, `getCounselorDashboard`, `getAdminDashboard`) plus small lookup helpers for a user's bank/university linkage.
+- `apps/api/src/routes/portal/index.ts` — thin Hono sub-router mounted at `/portal`. Each route is `requireAuth` + `requireRole(<single role>)`, then calls its service and returns `ok(c, result)`.
+- `apps/api/src/routes/portal/portal.test.ts` — integration test that seeds an org + application + verification + decision, then asserts every dashboard returns the expected scoped shape and that a student is `403` for `/portal/admin/dashboard`.
+- `packages/api-client/src/endpoints/portal.ts` + barrel update — typed `portalEndpoints(client)` with DTOs `StudentDashboard`, `UniversityDashboard`, `BankDashboard`, `CounselorDashboard`, `AdminDashboard` so Phase 10 can bind each portal's dashboard view directly.
+
+`app.ts` mounts the router: `app.route("/portal", createPortalRouter())`.
+
+### Why it was done
+
+Portal dashboards would otherwise require each frontend to call `/applications?...`, `/verifications?...`, `/documents?...`, and `/audit?...` in parallel and assemble the counts client-side. That couples the frontend to the entity list shapes, bloats the critical-path payload, and forces every portal to reimplement the same aggregation. A server-side aggregate is one network round-trip, reuses the existing services' query idioms, and gives us a stable DTO to bind against in Phase 10.
+
+### How it works
+
+**One function per portal, scoped to the caller:**
+
+- **Student** — counts active applications (non-terminal statuses), pending verifications (statuses in `pending_submission|pending|under_review|more_info_needed`), and outstanding documents (`missing|needs_replacement`). Adds the last 10 `audit_log` rows where `entity_type='student' AND entity_id=<studentId>` OR `actor_user_id=<userId>` so the student sees everything that touches them, including their own logins.
+- **University** — groups applications by status (zero-filled over the full enum so the UI never has missing keys), the 10 most recent submissions (`submittedAt is not null`, `order by submittedAt desc`), and the count of verifications attached to the university's applications that are still in a "needs review" state.
+- **Bank** — counts of `pending` and `under_review` verifications for this bank, the 10 most recent decisions (`status in ('verified','rejected')`, `order by decidedAt desc`), and the **median** time-to-decision in ms. Median is computed in JS over `(decidedAt - submittedAt)` diffs; implementing it in portable SQL that works in both SQLite and Postgres is more work than it's worth for a dashboard stat, and the result set is small (decisions per bank).
+- **Counselor** — the broadest read access we already allow in `routes/applications`. Returns all non-deleted students with an `applicationCount`, a `lastUpdatedAt` (max over the student's applications), and the `latestStatus` (most recently updated application). This mirrors the "broad counselor read" posture until a counselor↔student mapping table is introduced in a later phase.
+- **Admin** — platform-wide group-by counts (users by role, applications by status, verifications by status). `errorRateLast24h` is declared but returns `null` — it needs the `request_metrics` table that Phase 12 will add. Declaring the field now means the admin frontend gets a stable DTO and the Phase 12 change is a single-field wiring job, not a DTO reshape.
+
+**Portability discipline:**
+
+All aggregations use Drizzle's query builder (`count()`, `inArray`, `groupBy`, `leftJoin`, `innerJoin`) — no raw SQL strings and no SQLite-only functions. The `zeroFilled()` helper guarantees every enum key is present in the group-by response even when there are no rows for a given status, so the frontend never has to null-check individual statuses.
+
+**RBAC:**
+
+Each route is `requireRole(<exact role>)` — a student cannot call `/portal/admin/dashboard`; a counselor cannot read a bank dashboard. The integration test asserts the `403` path explicitly. `/portal/university/dashboard` and `/portal/bank/dashboard` additionally look up the caller's org via `university_users` / `bank_users`; if they aren't linked we return `403 forbidden` rather than returning a cross-tenant-empty dashboard.
+
+### Key concepts
+
+- **Aggregate endpoint pattern:** put the query-composition logic in a service (`services/portal-dashboards.ts`) and keep routes thin (`requireAuth + requireRole + call service`). This keeps tests focused (a single dashboard test per portal, no route-level branching).
+- **Zero-filled group-by responses:** when the response shape is `Record<Enum, number>`, pre-fill every enum value with `0` and then overlay the DB rows. Without it, `applicationsByStatus.draft` is `undefined` in TypeScript land and every consumer has to default-to-zero on its own.
+- **Stable DTOs for unimplemented sources:** `errorRateLast24h: number | null` declared now, populated in Phase 12. Don't introduce a new field in Phase 12 that reshapes the admin DTO — it churns every caller. Reserve the slot, document it as nullable, fill it later.
+- **Scope lookups via the portability layer:** `getBankIdForUser` / `getUniversityIdForDashboardUser` both go through `ctx.db.handle()` — no direct `bun:sqlite` or `node:fs` import in routes/services. Phase 15 swaps the adapter, not the services.
+
+### Best practices
+
+- Every dashboard route goes through the same middleware order (`requireAuth` → `requireRole` → handler) — no dashboard should be reachable without both checks.
+- Always zero-fill enum-keyed response shapes. The frontend should never do `data?.applicationsByStatus?.submitted ?? 0`.
+- Compute small derived stats (median, percentiles) in JS when the source set is a single tenant's records. Reach for portable SQL only when the dataset makes a server-side pass mandatory.
+- Reserve a nullable field for a not-yet-available metric. It costs nothing in the DTO and prevents a breaking reshape later.
+- Keep counselor access deliberately broad for now and flag the follow-up in code comments — don't invent a fake mapping table just to narrow the dashboard.
+
+### Mistakes to avoid
+
+- **Don't return raw list endpoint shapes from a dashboard.** If `/portal/student/dashboard` just returned `{ applications: [...], verifications: [...], documents: [...] }`, it's not an aggregate — it's four list calls in a trench-coat. Return *counts* + a tight "last 10" preview, not full list payloads.
+- **Don't compute `median` in a `GROUP BY` in portable SQL.** SQLite has no `percentile_cont`; Postgres does. Doing it in JS over a small tenant-scoped set is simpler and stays inside the SQLite ∩ Postgres rule.
+- **Don't guard dashboard routes with `requireAuth` only.** Role-scoping is the whole point of the endpoint — `requireRole("student")` must be present on `/portal/student/dashboard`, etc.
+- **Don't leak a tenant's data through a shared scope.** A university user hitting `/portal/university/dashboard` must be joined against their own `universityId`, not the global applications table. The test seeds a single university to keep the surface small; when Phase 14's seed adds multiple universities, we'll extend the test to assert cross-tenant isolation.
+- **Don't skip the `university_users` / `bank_users` lookup.** A role of `university` or `bank` does not imply the user is attached to an org yet. Return `403` with an explicit "user is not linked to a …" message rather than an empty dashboard.

@@ -15,6 +15,7 @@ import { createApplicationsRouter } from "./routes/applications";
 import { createVerificationsRouter } from "./routes/verifications";
 import { createDocumentsRouter } from "./routes/documents";
 import { createAuditRouter } from "./routes/audit";
+import { createPortalRouter } from "./routes/portal";
 import { createStorageRouter } from "./routes/storage";
 
 export interface AppBootstrap {
@@ -78,6 +79,7 @@ export function createApp(boot: AppBootstrap): AppHono {
   app.route("/verifications", createVerificationsRouter());
   app.route("/documents", createDocumentsRouter());
   app.route("/audit", createAuditRouter());
+  app.route("/portal", createPortalRouter());
   app.route("/storage", createStorageRouter());
 
   return app;
