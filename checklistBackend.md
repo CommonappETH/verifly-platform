@@ -295,7 +295,7 @@ All routes live under `apps/api/src/routes/`. Each module owns: route definition
 - [x] Enforce per-kind constraints in `POST /documents` service: allowed mime types (`application/pdf`, `image/png`, `image/jpeg`), max size 25 MB. (Already implemented in Phase 7.6 in `services/documents.ts` — `ALLOWED_MIME_TYPES` and `MAX_FILE_SIZE` constants.)
 - [x] Virus scan stub: `src/services/scan.ts` with `scanDocument(ctx, storageKey)` that returns `{ isSafe: true }`. Wired into `completeDocumentUpload` — on scan failure, the file is deleted and a `ValidationError` is thrown. Phase 11 swaps for a real scanner.
 - [x] Smoke test: `src/routes/storage.test.ts` — 4 tests: full round-trip (create doc → PUT → complete → GET → byte equality), tampered signature rejection (403), max size enforcement (400), expired signature rejection (403). All pass.
-- [ ] Commit: `feat(api): local filesystem document storage with HMAC-signed URLs`.
+- [x] Commit: `feat(api): local filesystem document storage with HMAC-signed URLs`. (Pushed to `main` as `9c51882`.)
 
 ## Phase 9 — Role-scoped aggregate endpoints
 
