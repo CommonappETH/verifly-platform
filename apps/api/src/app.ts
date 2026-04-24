@@ -3,10 +3,18 @@ import { Hono } from "hono";
 import { csrf } from "./middleware/csrf";
 import { errorHandler } from "./middleware/error-handler";
 import { logger } from "./middleware/logger";
+import { rateLimit } from "./middleware/rate-limit";
 import { requestId } from "./middleware/request-id";
 import { createContext } from "./platform";
 import type { AppEnv, Ctx } from "./platform";
 import { createAuthRouter } from "./routes/auth";
+import { createUsersRouter } from "./routes/users";
+import { createStudentsRouter } from "./routes/students";
+import { createOrganizationsRouter } from "./routes/organizations";
+import { createApplicationsRouter } from "./routes/applications";
+import { createVerificationsRouter } from "./routes/verifications";
+import { createDocumentsRouter } from "./routes/documents";
+import { createAuditRouter } from "./routes/audit";
 
 export interface AppBootstrap {
   env: AppEnv;
@@ -61,6 +69,13 @@ export function createApp(boot: AppBootstrap): AppHono {
   );
 
   app.route("/auth", createAuthRouter());
+  app.route("/users", createUsersRouter());
+  app.route("/students", createStudentsRouter());
+  app.route("/organizations", createOrganizationsRouter());
+  app.route("/applications", createApplicationsRouter());
+  app.route("/verifications", createVerificationsRouter());
+  app.route("/documents", createDocumentsRouter());
+  app.route("/audit", createAuditRouter());
 
   return app;
 }

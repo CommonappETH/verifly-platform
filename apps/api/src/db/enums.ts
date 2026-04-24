@@ -34,6 +34,7 @@ export const applicationStatuses = [
 export type ApplicationStatus = (typeof applicationStatuses)[number];
 
 export const verificationStatuses = [
+  "pending_submission",
   "pending",
   "under_review",
   "more_info_needed",

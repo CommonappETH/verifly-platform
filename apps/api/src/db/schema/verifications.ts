@@ -44,7 +44,7 @@ export const verifications = sqliteTable(
     codeIdx: index("idx_verifications_code").on(t.code),
     statusCheck: check(
       "verifications_status_check",
-      sql`${t.status} IN ('pending','under_review','more_info_needed','verified','rejected')`,
+      sql`${t.status} IN ('pending_submission','pending','under_review','more_info_needed','verified','rejected')`,
     ),
   }),
 );

@@ -791,3 +791,79 @@ The checklist mandates a typed client package so that:
 ### Next up
 
 Phase 7 — Domain APIs: users/students/organizations/applications/verifications/documents routes + services, with the application state machine.
+
+---
+
+## §20 — Phase 7: Domain APIs
+
+### What was done
+
+Built the full domain API layer across 7 sub-phases, creating services and route modules for every core entity in the Verifly platform. Each domain follows the same architecture: a **service file** (`src/services/<entity>.ts`) containing pure functions that accept `Ctx` as first argument, and a **route file** (`src/routes/<entity>/index.ts`) that wires Hono handlers with Zod validation, auth middleware, and audit logging.
+
+**Files created (services):**
+- `services/audit.ts` — `audit()` and `listAuditEntries()` for the audit log
+- `services/students.ts` — CRUD for student profiles with cursor-based pagination
+- `services/guardians.ts` — CRUD for student guardians (hard delete, not soft)
+- `services/organizations.ts` — CRUD for universities and banks with slug uniqueness
+- `services/applications.ts` — CRUD + `transitionApplication()` for state machine transitions
+- `services/application-state.ts` — explicit transition table (from → allowed-tos + allowed-roles)
+- `services/verifications.ts` — CRUD + `submitVerification()` + `decideVerification()` with cascade to `application.verificationStatus`
+- `services/documents.ts` — create (with presigned upload URL), complete, review, soft-delete via `ctx.storage`
+
+**Files created (routes):**
+- `routes/users/index.ts` — `GET/PATCH/DELETE /users/me` with profile lookup by role
+- `routes/students/index.ts` — student CRUD + guardian sub-routes
+- `routes/organizations/index.ts` — organization CRUD (public read, admin write)
+- `routes/applications/index.ts` — application CRUD with role-scoped list filtering
+- `routes/verifications/index.ts` — verification CRUD + submit + decision + code lookup
+- `routes/documents/index.ts` — document metadata CRUD with presigned URLs
+- `routes/audit/index.ts` — admin-only audit log list
+
+**Files modified:**
+- `services/users.ts` — added `updateUser()` and `softDeleteUser()`
+- `db/enums.ts` — added `pending_submission` to `verificationStatuses`
+- `db/schema/verifications.ts` — updated CHECK constraint to include `pending_submission`
+- `app.ts` — mounted all 7 new routers
+
+**Migration:** `0001_add-pending-submission-status.sql` — recreates the `verifications` table with the new CHECK constraint (required fix: had to remove table-prefix from CHECK expression to work after SQLite rename).
+
+### Why it was done
+
+Phase 7 is the core business logic layer — every user-facing feature depends on these domain APIs. The architecture follows the **ports/adapters** pattern established in Phase 4.1: no service touches `bun:sqlite`, `node:fs`, or `process.env` directly. This ensures Phase 15's AWS swap is a driver-level change, not a rewrite of business logic.
+
+### How it works
+
+1. **Service pattern:** Every service function takes `Ctx` first. DB access via `ctx.db.handle()`, timestamps via `ctx.clock.now()`, IDs via `nanoid()`. Services return plain record interfaces, not Drizzle row types.
+
+2. **Route pattern:** Each route module exports a `create<Entity>Router()` factory returning `Hono<{ Variables: AppVariables }>`. Middleware chain: `requireAuth()` → optional `requireRole()` → optional `validate(schema, target)` → handler. Handler reads `c.get("ctx")` and `c.get("user")`, delegates to services, returns via `lib/responses` helpers (`ok`, `created`, `paginated`, `empty`).
+
+3. **Application state machine:** `application-state.ts` defines a `TRANSITION_TABLE` mapping each status to allowed targets and allowed roles. `validateTransition()` throws `AppError(409, "invalid_transition")` for illegal moves. The transitions are: draft→submitted (student), submitted→under_review (university), under_review→{awaiting_info, awaiting_verification, committee_review} (university), committee_review→{admitted, rejected, waitlisted, conditionally_admitted} (university).
+
+4. **Verification flow:** Create sets status to `pending_submission`. Student calls `/submit` to move to `pending`. Bank decides via `/decision` which sets `verified`/`rejected` and cascades to the linked application's `verificationStatus`.
+
+5. **Cursor-based pagination:** All list endpoints use `createdAt` (or `updatedAt`/`submittedAt`) as the cursor. Fetch `limit+1` rows, check if overflow exists, return `{ items, nextCursor, hasMore }`.
+
+6. **Audit trail:** `audit()` is called from every state-changing route with actor, action, entity type/ID, and optional metadata. Auth routes from Phase 5 will be back-filled with audit calls during Phase 11.6's audit completeness review.
+
+### Key concepts
+
+- **Role-scoped list filtering:** List endpoints build query filters based on the caller's role. Students see their own, universities see received applications, banks see assigned verifications, admins see all.
+- **Verification codes:** Human-readable format `VF-XXXX` using a 32-char alphabet (no ambiguous 0/O/I/1/L). Generated with `crypto.getRandomValues`.
+- **Document presigning:** `POST /documents` creates metadata + calls `ctx.storage.presignUpload()` for the upload URL. `POST /documents/:id/complete` verifies the upload landed via `ctx.storage.head()`.
+
+### Best practices
+
+- Services never throw HTTP-specific errors by name — they throw `NotFoundError`, `ConflictError`, etc. from `lib/errors.ts`, which the error handler middleware maps to the correct status codes.
+- Zod schemas use `.strict()` to reject unknown keys.
+- All string fields have explicit `.max()` caps to prevent abuse.
+- Access control is layered: `requireAuth()` → `requireRole()` → per-route authorization logic (e.g. "is this the student's own application?").
+
+### Gotchas to remember
+
+- **`pending_submission` enum not in original Phase 3 schema:** The verification flow requires a `pending_submission → pending` transition, but Phase 3 only defined `pending`. Added via migration `0001`. The Drizzle-generated SQLite migration had a bug where the CHECK constraint referenced `__new_verifications.status` instead of `status`, causing a rename failure — fixed by removing the table prefix from the CHECK expression.
+- **Counselor-student mapping is implicit:** There's no explicit counselor→student FK in the schema. For now, counselors have broad read access. A future phase may add a school-based mapping.
+- **Application state machine uses `admitted` not `accepted`:** The checklist mentioned `accepted` but the `applicationStatuses` enum from Phase 3 has `admitted`. We follow the schema.
+
+### Next up
+
+Phase 8 — Local object storage: implement the filesystem-based storage adapter with HMAC-signed URLs for uploads and downloads.

@@ -106,6 +106,38 @@ export async function updatePasswordHash(
     .where(eq(users.id, userId));
 }
 
+export interface UpdateUserInput {
+  name?: string | null;
+  email?: string;
+}
+
+export async function updateUser(
+  ctx: Ctx,
+  id: string,
+  input: UpdateUserInput,
+): Promise<UserRecord | null> {
+  const now = ctx.clock.now();
+  const values: Record<string, unknown> = { updatedAt: now };
+  if (input.name !== undefined) values.name = input.name;
+  if (input.email !== undefined) values.email = normalizeEmail(input.email);
+
+  await ctx.db
+    .handle()
+    .update(users)
+    .set(values)
+    .where(and(eq(users.id, id), isNull(users.deletedAt)));
+  return findUserById(ctx, id);
+}
+
+export async function softDeleteUser(ctx: Ctx, id: string): Promise<void> {
+  const now = ctx.clock.now();
+  await ctx.db
+    .handle()
+    .update(users)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(and(eq(users.id, id), isNull(users.deletedAt)));
+}
+
 export function toPublicUser(u: UserRecord): {
   id: string;
   email: string;

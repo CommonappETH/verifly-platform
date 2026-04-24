@@ -7,12 +7,12 @@ This file defines STRICT rules that MUST always be followed.
 ## CORE ENFORCEMENT RULES
 
 You MUST ALWAYS follow:
-- checklist.md
+- checklistBackend.md
 - namingConventions.md
 - AIRules.md itself
 
 You MUST:
-- Update checklist.md AFTER EVERY change
+- Update checklistBackend.md AFTER EVERY change
 - Update LearningGuide.md AFTER EVERY change
 - Follow namingConventions.md EXACTLY
 
@@ -46,7 +46,7 @@ If a task conflicts with these rules:
 
 Before writing code, you MUST validate:
 - Does this follow namingConventions.md?
-- Is this aligned with checklist.md?
+- Is this aligned with checklistBackend.md?
 - Will LearningGuide.md be updated after this?
 
 If ANY answer is NO → STOP and fix it first.
@@ -55,10 +55,10 @@ If ANY answer is NO → STOP and fix it first.
 
 ## CHECKLIST ENFORCEMENT (CONTROLLED FLEXIBILITY)
 
-- checklist.md is the PRIMARY source of truth
+- checklistBackend.md is the PRIMARY source of truth
 
 You MUST:
-1. Follow checklist.md in order by default
+1. Follow checklistBackend.md in order by default
 2. Always know which step you are on
 3. Mark tasks complete immediately after finishing them
 
@@ -80,7 +80,7 @@ You are allowed to temporarily skip ahead ONLY IF:
 
 2. Complete ONLY what is required (no extra work)
 
-3. Immediately update checklist.md:
+3. Immediately update checklistBackend.md:
    - Add the skipped work in the correct order
    - Reflect what was done
 
@@ -102,7 +102,7 @@ You are allowed to temporarily skip ahead ONLY IF:
 Structure > speed
 But progress > rigidity
 
-Every deviation from checklist.md must be justified and documented.
+Every deviation from checklistBackend.md must be justified and documented.
 
 ---
 

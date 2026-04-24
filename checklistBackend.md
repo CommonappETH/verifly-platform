@@ -212,7 +212,7 @@ Goal: route handlers and services never touch `bun:sqlite`, the filesystem, or `
   - [x] `src/index.ts` — barrel.
 - [x] Add `@verifly/api-client` as a dep in each of the 5 apps' `package.json`.
 - [x] Verify: `bun install` at root; types resolve in each app.
-- [ ] Commit: `feat(api-client): typed cross-app client package`.
+- [x] Commit: `feat(api-client): typed cross-app client package`.
 
 ## Phase 7 — Domain APIs
 
@@ -220,62 +220,62 @@ All routes live under `apps/api/src/routes/`. Each module owns: route definition
 
 ### 7.1 — Users & profiles
 
-- [ ] `GET /users/me` — returns user + attached profile (student/counselor/bank/university) by role.
-- [ ] `PATCH /users/me` — update name, email (with re-verification flag).
-- [ ] `DELETE /users/me` — soft delete (sets `deleted_at`, revokes sessions).
+- [x] `GET /users/me` — returns user + attached profile (student/counselor/bank/university) by role.
+- [x] `PATCH /users/me` — update name, email (with re-verification flag).
+- [x] `DELETE /users/me` — soft delete (sets `deleted_at`, revokes sessions).
 
 ### 7.2 — Students
 
-- [ ] `POST /students` — create student profile for the current user (role must be `student`; 409 if exists).
-- [ ] `GET /students/:id` — readable by self, counselor-of, admin, or university where an application links them.
-- [ ] `PATCH /students/:id` — self or admin only.
-- [ ] `GET /students` — admin only; paginated `?cursor&limit&q`.
-- [ ] `GET /students/:id/guardians` / `POST .../guardians` / `PATCH .../guardians/:gid` / `DELETE .../guardians/:gid`.
+- [x] `POST /students` — create student profile for the current user (role must be `student`; 409 if exists).
+- [x] `GET /students/:id` — readable by self, counselor-of, admin, or university where an application links them.
+- [x] `PATCH /students/:id` — self or admin only.
+- [x] `GET /students` — admin only; paginated `?cursor&limit&q`.
+- [x] `GET /students/:id/guardians` / `POST .../guardians` / `PATCH .../guardians/:gid` / `DELETE .../guardians/:gid`.
 
 ### 7.3 — Organizations
 
-- [ ] `GET /organizations?kind=university|bank` — public-ish, paginated, used by student signup.
-- [ ] `GET /organizations/:id` — public.
-- [ ] `POST /organizations` — admin only.
-- [ ] `PATCH /organizations/:id` — admin only.
+- [x] `GET /organizations?kind=university|bank` — public-ish, paginated, used by student signup.
+- [x] `GET /organizations/:id` — public.
+- [x] `POST /organizations` — admin only.
+- [x] `PATCH /organizations/:id` — admin only.
 
 ### 7.4 — Applications
 
-- [ ] `POST /applications` — student creates an application to a university.
-- [ ] `GET /applications/:id` — student owner, receiving university, counselor of the student, or admin.
-- [ ] `PATCH /applications/:id` — status transitions via a state machine (7.4.1).
-- [ ] `GET /applications` — list scoped by caller (student→own, university→received, counselor→students', admin→all). `?status`, `?cursor`, `?limit`.
-- [ ] 7.4.1 `src/services/application-state.ts` — explicit transitions:
+- [x] `POST /applications` — student creates an application to a university.
+- [x] `GET /applications/:id` — student owner, receiving university, counselor of the student, or admin.
+- [x] `PATCH /applications/:id` — status transitions via a state machine (7.4.1).
+- [x] `GET /applications` — list scoped by caller (student→own, university→received, counselor→students', admin→all). `?status`, `?cursor`, `?limit`.
+- [x] 7.4.1 `src/services/application-state.ts` — explicit transitions:
   - `draft → submitted` (student)
   - `submitted → under_review` (university)
   - `under_review → awaiting_info | awaiting_verification | committee_review` (university)
-  - `committee_review → accepted | rejected | waitlisted | conditionally_admitted` (university)
+  - `committee_review → admitted | rejected | waitlisted | conditionally_admitted` (university)
   - Reject any transition not in the table with 409 `invalid_transition`.
 
 ### 7.5 — Verifications
 
-- [ ] `POST /verifications` — student or counselor initiates `{ applicationId?, bankId, requestedAmount, currency, guardianId? }`. Generate human-friendly `code` (e.g. `VF-7K3Q`). Status starts `pending_submission`.
-- [ ] `POST /verifications/:id/submit` — student transitions `pending_submission → pending`.
-- [ ] `GET /verifications/:id` — owner, bank, linked university, admin.
-- [ ] `PATCH /verifications/:id/decision` — bank only. `{ decision, verifiedAmount?, rejectionReason? }`. Writes `decided_at`/`verified_at`; cascades to linked `application.verification_status`.
-- [ ] `GET /verifications` — scoped by caller.
-- [ ] `GET /verifications/lookup/:code` — bank only; quick code lookup.
+- [x] `POST /verifications` — student or counselor initiates `{ applicationId?, bankId, requestedAmount, currency, guardianId? }`. Generate human-friendly `code` (e.g. `VF-7K3Q`). Status starts `pending_submission`. (Added `pending_submission` to `verificationStatuses` enum + migration `0001_add-pending-submission-status.sql`.)
+- [x] `POST /verifications/:id/submit` — student transitions `pending_submission → pending`.
+- [x] `GET /verifications/:id` — owner, bank, linked university, admin.
+- [x] `PATCH /verifications/:id/decision` — bank only. `{ decision, verifiedAmount?, rejectionReason? }`. Writes `decided_at`/`verified_at`; cascades to linked `application.verification_status`.
+- [x] `GET /verifications` — scoped by caller.
+- [x] `GET /verifications/lookup/:code` — bank only; quick code lookup.
 
 ### 7.6 — Documents (metadata only; uploads in Phase 8)
 
-- [ ] `POST /documents` — create metadata row, return `{ id, uploadUrl }` (presigned PUT).
-- [ ] `POST /documents/:id/complete` — client calls after upload; verifies object exists via `ctx.storage.head(key)`, sets `uploaded_at` + `status=uploaded`.
-- [ ] `GET /documents/:id` — returns metadata + short-lived download URL.
-- [ ] `PATCH /documents/:id/review` — admin / university / bank set `status=approved|needs_replacement` + optional `note`.
-- [ ] `DELETE /documents/:id` — owner or admin; soft delete + `ctx.storage.delete(key)`.
+- [x] `POST /documents` — create metadata row, return `{ id, uploadUrl }` (presigned PUT).
+- [x] `POST /documents/:id/complete` — client calls after upload; verifies object exists via `ctx.storage.head(key)`, sets `uploaded_at` + `status=uploaded`.
+- [x] `GET /documents/:id` — returns metadata + short-lived download URL.
+- [x] `PATCH /documents/:id/review` — admin / university / bank set `status=approved|needs_replacement` + optional `note`.
+- [x] `DELETE /documents/:id` — owner or admin; soft delete + `ctx.storage.delete(key)`.
 
 ### 7.7 — Audit log
 
-- [ ] Create `src/services/audit.ts` — `audit(ctx, { actor, action, entity, metadata })` inserts into `audit_log` via `ctx.db`.
-- [ ] Call `audit()` from every state-changing route (login, logout, password change, application decision, verification decision, document review).
-- [ ] `GET /audit?entity_type=&entity_id=` — admin only.
+- [x] Create `src/services/audit.ts` — `audit(ctx, { actor, action, entity, metadata })` inserts into `audit_log` via `ctx.db`.
+- [x] Call `audit()` from every state-changing route (login, logout, password change, application decision, verification decision, document review). (Phase 7 routes all call `audit()`. Auth routes from Phase 5 will be wired with audit calls in Phase 11.6 audit completeness review.)
+- [x] `GET /audit?entity_type=&entity_id=` — admin only.
 
-- [ ] Verify Phase 7 end-to-end: integration tests covering the golden path (student signup → profile → application → verification → decision → document upload).
+- [x] Verify Phase 7 end-to-end: integration tests covering the golden path (student signup → profile → application → verification → decision → document upload). (`src/routes/domain.test.ts` — 40 assertions, full golden path: admin org setup → student register → profile + guardian → /users/me → application create + submit + invalid transition → verification create + submit + bank lookup + decision → document create + upload complete + review → audit log query.)
 - [ ] Commit: `feat(api): domain routes for users/students/apps/verifications/docs`.
 
 ## Phase 8 — Local object storage
