@@ -992,3 +992,78 @@ Each route is `requireRole(<exact role>)` — a student cannot call `/portal/adm
 - **Don't guard dashboard routes with `requireAuth` only.** Role-scoping is the whole point of the endpoint — `requireRole("student")` must be present on `/portal/student/dashboard`, etc.
 - **Don't leak a tenant's data through a shared scope.** A university user hitting `/portal/university/dashboard` must be joined against their own `universityId`, not the global applications table. The test seeds a single university to keep the surface small; when Phase 14's seed adds multiple universities, we'll extend the test to assert cross-tenant isolation.
 - **Don't skip the `university_users` / `bank_users` lookup.** A role of `university` or `bank` does not imply the user is attached to an org yet. Return `403` with an explicit "user is not linked to a …" message rather than an empty dashboard.
+
+---
+
+## §22 — Phase 10 step 1: shared frontend infra + CORS (11.1 pulled forward)
+
+### What was done
+
+Before migrating any portal off mocks, added the pieces every portal will need — and pulled Phase 11.1's CORS middleware forward so the frontends can actually reach the API with credentials.
+
+Backend:
+- `apps/api/src/middleware/cors.ts` — wraps Hono's `cors` middleware with a dynamic origin check backed by the comma-separated `ALLOWED_ORIGINS` env var. `credentials: true`, plus `Content-Type` / `X-CSRF-Token` / `X-Request-ID` in `allowedHeaders`, and `X-Request-ID` exposed to the browser.
+- `apps/api/src/app.ts` — mounts CORS right after logger (so logs capture the preflight request), gated on `boot.allowedOrigins` being non-empty. Tests leave it empty and rely on same-origin `app.request(...)`.
+- `apps/api/src/server.ts` — passes `env.ALLOWED_ORIGINS` through to `createApp`.
+- `apps/api/.env.example` — `ALLOWED_ORIGINS=http://localhost:5173,...,http://localhost:5177` covering the range `@lovable.dev/vite-tanstack-config` picks from for its ephemeral dev ports.
+- `apps/api/src/middleware/cors.test.ts` — preflight echoes allow-origin + credentials + allowed headers, disallowed origin returns no allow-origin, same-origin request passes through.
+
+api-client package:
+- `packages/api-client/src/index.ts` — `createVeriflyClient()` now also wires `portal` (the Phase 9 dashboard endpoints), so every portal has typed access to its dashboard without an extra import.
+
+Per-frontend (all 5 apps):
+- `apps/<app>/.env.example` — `VITE_API_BASE_URL=http://localhost:8787`.
+- `apps/<app>/src/lib/api-client.ts` — builds a singleton `apiClient` from `createVeriflyClient({ baseUrl: import.meta.env.VITE_API_BASE_URL })`.
+- `apps/<app>/src/auth/AuthProvider.tsx` — React context that runs `apiClient.auth.me()` on mount, exposes `{ user, isLoading, login, logout, refresh }`.
+
+### Why it was done
+
+Phase 10 says "one app at a time; verify in a browser before moving on." That implies we have to run each frontend against the API and dogfood the golden path. None of that works without:
+- **CORS** — the browser blocks cross-origin `credentials: include` fetches unless the server responds with a matching `Access-Control-Allow-Origin` and `Access-Control-Allow-Credentials: true`. Deferring this to Phase 11.1 would mean every migration is tested via `curl` rather than a real browser — that defeats the whole point of doing frontend integration.
+- **`VITE_API_BASE_URL`** — the `@verifly/api-client` package takes `baseUrl` as a constructor arg. Each frontend bakes this in at build time, not at runtime, because Vite inlines `import.meta.env.VITE_*` references.
+- **`AuthProvider`** — every portal needs "who am I" on mount and a `login` / `logout` handle. Writing this once per portal invites drift; putting an identical context in each app is still DRY-per-app (they are separate build units) but uniform in shape across them.
+
+The shared-infra pass is deliberately a single commit because it is mechanical — no routes change, no mocks are touched, and it lets each subsequent per-app migration be scoped to that app's routes only.
+
+### How it works
+
+**CORS origin matching is dynamic, not a wildcard.** Hono's `cors({ origin: fn })` calls the function per request with the `Origin` header; returning the origin string echoes it back as the allow-origin, returning `""` omits the header entirely. We explicitly allow-list the 5173–5177 range in dev because `@lovable.dev/vite-tanstack-config` picks from those ports at random per app. In production, `ALLOWED_ORIGINS` will be the exact production hostnames.
+
+**Why "echo the origin" instead of `*`?** `credentials: include` + `Access-Control-Allow-Origin: *` is a specification violation that every browser rejects. When credentials are in play, the allow-origin must be an exact string, so we reflect the request origin only if it's in the allow-set.
+
+**Why not use a Zod-validated list in the middleware itself?** The env validation already lives in `platform/local/secrets.ts` as a string, so the middleware is handed a pre-parsed `string[]`. Keeping the middleware dumb ("given a list, check a `Set`") means tests don't need to stub env loading — they just call `cors(["http://localhost:5173"])`.
+
+**Why `lib/api-client.ts`, not `lib/api.ts`?** Two reasons:
+1. `bank` already has a `lib/api.ts` that wires up mock data — overwriting it before `bank`'s migration runs would break every route it serves. A dedicated filename avoids the collision during the shared pass.
+2. `namingconventions.md` §1.2 forbids files named `api.ts` only in the sense of "vague catch-all" — `api-client.ts` is more specific and uniform across apps.
+
+The old `bank/src/lib/api.ts` mock shim will be deleted during the bank migration (step 3 of this phase).
+
+**AuthProvider is identical across apps on purpose.** Each portal re-imports `apiClient` from its own `@/lib/api-client`, so the context is bound to *that* portal's baseUrl. Sharing the component via a shared package is tempting but adds a workspace dependency that would need to be torn through on every auth-API change; a 60-line duplicated component is lower-friction.
+
+### Key concepts
+
+- **Pulling a future phase forward:** AIRULES §CONDITIONAL SKIPPING allows this only when the current phase is blocked without it. CORS is a hard prerequisite for any cross-origin browser testing, so pulling 11.1 forward is justified. Document the deviation in both the skipped phase's checklist (tick the boxes with a note) and the current phase's checklist (the "pulled forward" bullet). AIRULES requires this bookkeeping.
+- **Preflight vs actual request:** CORS middleware must handle the `OPTIONS` preflight. Hono's `cors` does this automatically — but only if it runs before auth / CSRF, so the preflight doesn't trip a 401. We put it right after `logger` for exactly this reason.
+- **`credentials: include` symmetry:** both the frontend (`createClient({ credentials: "include" })`) and the backend (`cors({ credentials: true })`) have to agree — either alone does nothing.
+- **Singleton API client per portal:** one `apiClient` per app, imported as a plain module. No provider, no hooks for the client itself — the React context is only for the *auth* state, which is user-facing.
+
+### Best practices
+
+- Scope CORS allow-lists narrowly. Prefer 5 explicit origins in an array over a regex.
+- Put CORS before auth / CSRF so the preflight never needs credentials.
+- Surface `X-Request-ID` via `exposeHeaders` so the browser can read it — critical for debugging across origins.
+- Read `VITE_API_BASE_URL` once at module load, not per-request. The baseUrl doesn't change after the bundle is built.
+- When a step is mechanical and covers multiple apps, do it in one pass and commit once — avoids "which app was updated when" confusion in `git blame`.
+
+### Mistakes to avoid
+
+- **Don't use `origin: "*"` with credentials.** The browser will reject every response. Use a function or an exact string.
+- **Don't put CORS after auth.** A preflight has no cookies; auth will 401 it and the middleware will never run.
+- **Don't read `process.env.VITE_*` on the frontend.** Vite's injection is at the `import.meta.env` key; reading `process.env` works in Node during SSR hand-off but not in the browser bundle.
+- **Don't share `AuthProvider` across apps via a workspace package until there's a second reason to.** Each app has its own routing shell, its own role expectations, and its own user-facing error copy. Premature sharing creates a bottleneck for every per-portal UX tweak.
+- **Don't forget to pull the skipped phase forward in the checklist too.** If 11.1 is done but its checkboxes stay unticked, the next contributor will implement it again. Tick the boxes, add a "pulled forward" note.
+
+### Next up
+
+Phase 10 step 2 — migrate the `@verifly/university` portal off mocks. Start with `src/lib/types.ts` mock generators; bind `applicants`, `applications`, `decisions` routes to `apiClient.applications.*`; walk the university golden path in a browser with the API running.

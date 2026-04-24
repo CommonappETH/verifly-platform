@@ -313,9 +313,10 @@ Each portal has dashboard views that would otherwise need 3+ round-trips. Add th
 
 Replace mock data with `@verifly/api-client` calls. One app at a time; verify in a browser before moving on.
 
-- [ ] Env var in each app: `VITE_API_BASE_URL` (dev: `http://localhost:8787`). AWS URLs added in Phase 15.
-- [ ] `apps/<x>/src/lib/api.ts` exports a per-app `apiClient` built from `createClient({ baseUrl })`.
-- [ ] `apps/<x>/src/auth/AuthProvider.tsx` — React context that calls `GET /auth/me` on mount; exposes `user`, `login`, `logout`.
+- [x] Env var in each app: `VITE_API_BASE_URL` (dev: `http://localhost:8787`). AWS URLs added in Phase 15. (Added `apps/<app>/.env.example` in all 5 frontends.)
+- [x] `apps/<x>/src/lib/api.ts` exports a per-app `apiClient` built from `createClient({ baseUrl })`. (Deviation: filename is `api-client.ts` not `api.ts` — namingconventions.md §1.2 requires kebab-case, and `bank` already had a pre-existing mock-wiring `lib/api.ts` that will be deleted when `bank` is migrated. Using a dedicated filename avoids a collision during the shared-infra pass.)
+- [x] `apps/<x>/src/auth/AuthProvider.tsx` — React context that calls `GET /auth/me` on mount; exposes `user`, `login`, `logout`. (Adds `refresh` too so routes can re-hydrate after a mutation that changes user identity.)
+- [x] **Phase 11.1 pulled forward** — CORS middleware added now so frontends can hit the API cross-origin with cookies during Phase 10 dogfooding. See checklist §11.1 below (boxes ticked there too).
 - [ ] **student** — migrate mock routes one at a time; delete `apps/student/src/lib/mock-data.ts` last.
 - [ ] **university** — swap `lib/types.ts` mock generators for API calls.
 - [ ] **bank** — swap mock verifications list/detail/decision flow.
@@ -327,11 +328,12 @@ Replace mock data with `@verifly/api-client` calls. One app at a time; verify in
 
 ## Phase 11 — Security & production hardening
 
-### 11.1 — CORS
+### 11.1 — CORS (pulled forward into Phase 10)
 
-- [ ] `src/middleware/cors.ts` using Hono's `cors`. Allowed origins from `ALLOWED_ORIGINS` (comma-separated). Dev: all 5 `http://localhost:<port>`.
-- [ ] `credentials: true`, `allowHeaders: ["Content-Type", "X-CSRF-Token", "X-Request-ID"]`, `exposeHeaders: ["X-Request-ID"]`.
-- [ ] Verify: a cross-origin request from each portal's dev URL succeeds with cookies.
+- [x] `src/middleware/cors.ts` using Hono's `cors`. Allowed origins from `ALLOWED_ORIGINS` (comma-separated). Dev: 5 `http://localhost:<port>` entries pre-populated in `.env.example` covering 5173–5177 for the per-app ephemeral ports `@lovable.dev/vite-tanstack-config` picks.
+- [x] `credentials: true`, `allowHeaders: ["Content-Type", "X-CSRF-Token", "X-Request-ID"]`, `exposeHeaders: ["X-Request-ID"]`. (Uses a function for `origin` — wildcard + credentials is rejected by browsers, so the middleware echoes the request origin only when it is in the allow-set.)
+- [x] Verify: a cross-origin request from each portal's dev URL succeeds with cookies. (Covered by `src/middleware/cors.test.ts`: preflight echoes allow-origin + credentials + headers; disallowed origin returns no allow-origin; same-origin requests pass through unchanged.)
+- [x] **Justification (AIRULES §CONDITIONAL SKIPPING):** CORS is required to unblock Phase 10's per-app dogfooding — a frontend at `http://localhost:5174` cannot call `http://localhost:8787` with credentials without it. Implemented only the CORS middleware + test; the rest of Phase 11 remains deferred.
 
 ### 11.2 — Security headers
 

@@ -16,6 +16,7 @@ import { verificationEndpoints } from "./endpoints/verifications";
 import { documentEndpoints } from "./endpoints/documents";
 import { userEndpoints } from "./endpoints/users";
 import { organizationEndpoints } from "./endpoints/organizations";
+import { portalEndpoints } from "./endpoints/portal";
 
 export interface VeriflyClient extends ApiClient {
   auth: ReturnType<typeof authEndpoints>;
@@ -25,6 +26,7 @@ export interface VeriflyClient extends ApiClient {
   documents: ReturnType<typeof documentEndpoints>;
   users: ReturnType<typeof userEndpoints>;
   organizations: ReturnType<typeof organizationEndpoints>;
+  portal: ReturnType<typeof portalEndpoints>;
 }
 
 /**
@@ -42,5 +44,6 @@ export function createVeriflyClient(options: { baseUrl: string }): VeriflyClient
     documents: documentEndpoints(base),
     users: userEndpoints(base),
     organizations: organizationEndpoints(base),
+    portal: portalEndpoints(base),
   });
 }

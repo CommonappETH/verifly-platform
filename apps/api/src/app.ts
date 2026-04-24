@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 
+import { cors, parseAllowedOrigins } from "./middleware/cors";
 import { csrf } from "./middleware/csrf";
 import { errorHandler } from "./middleware/error-handler";
 import { logger } from "./middleware/logger";
@@ -24,6 +25,11 @@ export interface AppBootstrap {
   // Test-only override: build a Ctx per request (e.g. from a test harness).
   // Must still satisfy the Ctx port shape.
   createCtx?: (params: { requestId: string }) => Ctx;
+  // Comma-separated allowed origins, pulled from ALLOWED_ORIGINS at boot.
+  // Tests can pass "" to disable CORS entirely (same-origin fetch from
+  // app.request() doesn't set an Origin header, so the middleware is a
+  // no-op there anyway).
+  allowedOrigins?: string;
 }
 
 export type AppVariables = {
@@ -57,6 +63,9 @@ export function createApp(boot: AppBootstrap): AppHono {
   app.onError(errorHandler(boot.env));
   app.use("*", requestId());
   app.use("*", logger());
+  if (boot.allowedOrigins) {
+    app.use("*", cors(parseAllowedOrigins(boot.allowedOrigins)));
+  }
   app.use("*", async (c, next) => {
     c.set("ctx", makeCtx({ requestId: c.get("requestId") }));
     await next();
