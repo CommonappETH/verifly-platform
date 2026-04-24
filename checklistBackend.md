@@ -280,19 +280,21 @@ All routes live under `apps/api/src/routes/`. Each module owns: route definition
 
 ## Phase 8 — Local object storage
 
-- [ ] Create `apps/api/.storage/` (gitignored). Default `STORAGE_DIR=./.storage`.
-- [ ] Implement `apps/api/src/platform/local/storage.ts`:
+- [x] Create `apps/api/.storage/` (gitignored). Default `STORAGE_DIR=./.storage`. (Already in `.gitignore` from Phase 1; `STORAGE_DIR` env var with default `./.storage` already in `platform/local/secrets.ts` from Phase 4.1; `ensureStorageDir()` called at startup in `platform/local/index.ts`.)
+- [x] Implement `apps/api/src/platform/local/storage.ts`:
   - Object key scheme: `documents/<owner_user_id>/<document_id>/<filename>`; resolved to an absolute path under `STORAGE_DIR` with path-traversal protection (reject keys containing `..`, leading `/`, or backslashes).
   - `presignUpload({ key, mimeType, maxBytes, expiresInSec })` → `{ url, headers }` where `url = /storage/<key>?exp=<ts>&sig=<hmac>` and the HMAC is over `PUT|<key>|<exp>|<mimeType>|<maxBytes>` using `SESSION_PEPPER`.
   - `presignDownload(key, expiresInSec)` → signed `GET` URL.
   - `head(key)` / `delete(key)` via `node:fs/promises`.
-- [ ] Add signed-URL routes in `apps/api/src/routes/storage.ts`:
+  - (Already implemented in Phase 4.1/7 with `assertSafeKey`, `resolveStoragePath`, `verifyUploadSignature`, `verifyDownloadSignature`, constant-time HMAC comparison.)
+- [x] Add signed-URL routes in `apps/api/src/routes/storage.ts`:
   - `PUT /storage/*` — verify signature, enforce `Content-Type` and max size, stream body to disk atomically (write to `.tmp` then rename).
-  - `GET /storage/*` — verify signature, stream from disk with correct `Content-Type`.
-  - These routes bypass CSRF (they carry their own signed-URL auth) and bypass the default rate limit (they're rate-limited on `ip:/storage`).
-- [ ] Enforce per-kind constraints in `POST /documents` service: allowed mime types (`application/pdf`, `image/png`, `image/jpeg`), max size 25 MB.
-- [ ] Virus scan stub: `src/services/scan.ts` with `scan(key)` that currently no-ops. Wire into `POST /documents/:id/complete` so Phase 11 can swap in a real scanner.
-- [ ] Smoke test: create doc → PUT to signed URL → complete → GET signed URL → verify bytes match.
+  - `GET /storage/*` — verify signature, stream from disk with correct `Content-Type` (guessed from file extension: pdf, png, jpg/jpeg).
+  - These routes bypass CSRF (added `/storage/` to `PUBLIC_CSRF_EXEMPT` in `app.ts`) and have their own rate limit (`ip:/storage`, 60/min).
+  - Mounted via `app.route("/storage", createStorageRouter())` in `app.ts`.
+- [x] Enforce per-kind constraints in `POST /documents` service: allowed mime types (`application/pdf`, `image/png`, `image/jpeg`), max size 25 MB. (Already implemented in Phase 7.6 in `services/documents.ts` — `ALLOWED_MIME_TYPES` and `MAX_FILE_SIZE` constants.)
+- [x] Virus scan stub: `src/services/scan.ts` with `scanDocument(ctx, storageKey)` that returns `{ isSafe: true }`. Wired into `completeDocumentUpload` — on scan failure, the file is deleted and a `ValidationError` is thrown. Phase 11 swaps for a real scanner.
+- [x] Smoke test: `src/routes/storage.test.ts` — 4 tests: full round-trip (create doc → PUT → complete → GET → byte equality), tampered signature rejection (403), max size enforcement (400), expired signature rejection (403). All pass.
 - [ ] Commit: `feat(api): local filesystem document storage with HMAC-signed URLs`.
 
 ## Phase 9 — Role-scoped aggregate endpoints

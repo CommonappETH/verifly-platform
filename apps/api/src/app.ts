@@ -15,6 +15,7 @@ import { createApplicationsRouter } from "./routes/applications";
 import { createVerificationsRouter } from "./routes/verifications";
 import { createDocumentsRouter } from "./routes/documents";
 import { createAuditRouter } from "./routes/audit";
+import { createStorageRouter } from "./routes/storage";
 
 export interface AppBootstrap {
   env: AppEnv;
@@ -41,6 +42,7 @@ const PUBLIC_CSRF_EXEMPT: Array<[RegExp, Set<string>]> = [
   [/^\/auth\/password\/forgot$/, new Set(["POST"])],
   [/^\/auth\/password\/reset$/, new Set(["POST"])],
   [/^\/auth\/logout$/, new Set(["POST"])],
+  [/^\/storage\//, new Set(["PUT", "GET"])],
 ];
 
 function isPublicCsrf(path: string, method: string): boolean {
@@ -76,6 +78,7 @@ export function createApp(boot: AppBootstrap): AppHono {
   app.route("/verifications", createVerificationsRouter());
   app.route("/documents", createDocumentsRouter());
   app.route("/audit", createAuditRouter());
+  app.route("/storage", createStorageRouter());
 
   return app;
 }

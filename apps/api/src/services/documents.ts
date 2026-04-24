@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { documents } from "../db/schema";
 import type { DocumentKind, DocumentStatus } from "../db/enums";
 import type { Ctx } from "../platform/ports";
+import { scanDocument } from "./scan";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 const ALLOWED_MIME_TYPES = ["application/pdf", "image/png", "image/jpeg"];
@@ -110,6 +111,15 @@ export async function completeDocumentUpload(
   if (!head) {
     throw new (await import("../lib/errors")).ValidationError(
       "upload not found at storage key; upload may not be complete",
+    );
+  }
+
+  const scanResult = await scanDocument(ctx, doc.storageKey);
+  if (!scanResult.isSafe) {
+    await ctx.storage.delete(doc.storageKey);
+    throw new (await import("../lib/errors")).ValidationError(
+      "file failed virus scan",
+      { threat: scanResult.threat },
     );
   }
 

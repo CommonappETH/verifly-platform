@@ -867,3 +867,66 @@ Phase 7 is the core business logic layer — every user-facing feature depends o
 ### Next up
 
 Phase 8 — Local object storage: implement the filesystem-based storage adapter with HMAC-signed URLs for uploads and downloads.
+
+---
+
+## §20 — Phase 8: Local object storage (HMAC-signed URLs)
+
+### What was done
+
+Completed the end-to-end local object storage system for document uploads and downloads. The storage adapter (`platform/local/storage.ts`) was already built in Phase 4.1/7 with presigning, HMAC verification, and path-traversal protection. Phase 8 added the missing pieces:
+
+1. **Storage routes** (`routes/storage.ts`) — `PUT /storage/*` and `GET /storage/*` endpoints that verify HMAC signatures and stream files to/from disk.
+2. **CSRF exemption** — Storage routes carry their own signed-URL authentication, so they bypass CSRF checks. Added `/storage/` pattern to `PUBLIC_CSRF_EXEMPT` in `app.ts`.
+3. **Virus scan stub** (`services/scan.ts`) — `scanDocument()` no-op returning `{ isSafe: true }`. Wired into `completeDocumentUpload` so Phase 11 can swap in a real scanner (ClamAV or external API).
+4. **Smoke tests** (`routes/storage.test.ts`) — Four tests covering the full upload/download round-trip, tampered signatures, max size enforcement, and expired signatures.
+
+**Files created:**
+- `src/routes/storage.ts` — signed-URL PUT/GET routes with rate limiting
+- `src/services/scan.ts` — virus scan stub
+- `src/routes/storage.test.ts` — smoke tests (4 tests, all passing)
+
+**Files modified:**
+- `src/app.ts` — mounted storage router, added CSRF exemption for `/storage/` paths
+- `src/services/documents.ts` — wired `scanDocument()` into `completeDocumentUpload`
+
+### Why it was done
+
+The document upload flow from Phase 7.6 created metadata and generated presigned URLs, but there was no server endpoint to actually receive the file bytes or serve them back. Phase 8 closes this gap by implementing the filesystem-backed upload/download routes that the presigned URLs point to.
+
+The presigned URL pattern is essential for the portability contract: on AWS (Phase 15), `presignUpload` will return an S3 presigned URL directly — no server-side route needed. Locally, we mimic the same pattern with HMAC-signed URLs that the server verifies before accepting or serving files.
+
+### How it works
+
+1. **Upload flow:** Client calls `POST /documents` → gets `{ uploadUrl, uploadHeaders }` → client PUTs the file bytes to the signed URL with the required headers (`Content-Type`, `X-Verifly-Max-Bytes`) → server verifies the HMAC signature, checks the content doesn't exceed `maxBytes`, writes atomically via `.tmp`+rename.
+
+2. **Download flow:** Client calls `GET /documents/:id` → gets `{ downloadUrl }` → client GETs the signed URL → server verifies HMAC, streams the file with correct `Content-Type` header (guessed from file extension).
+
+3. **Signature scheme:** The HMAC payload for uploads is `PUT|<key>|<exp>|<mimeType>|<maxBytes>` and for downloads is `GET|<key>|<exp>`, signed with `SESSION_PEPPER`. Verification uses constant-time comparison via `crypto.timingSafeEqual`. Expired signatures (checked against `ctx.clock.now()`) are rejected before HMAC comparison.
+
+4. **Atomic writes:** Uploads write to `<path>.tmp` first, then `rename()` to the final path. This prevents partial uploads from being served.
+
+5. **Scan integration:** After `storage.head()` confirms the file exists, `scanDocument()` runs before marking the document as `uploaded`. If the scan fails, the file is deleted and a `ValidationError` is thrown. The stub always returns safe; real implementation deferred to Phase 11.
+
+### Key concepts
+
+- **Presigned URLs for portability:** The presigned URL pattern decouples the upload mechanism from the storage backend. Locally, the API serves its own signed routes; on S3, the presigned URL goes directly to AWS. The client code doesn't change.
+- **HMAC-based authentication:** Storage routes don't use cookie/session auth. Instead, the presigned URL itself carries the authorization via the HMAC signature. This allows uploads from any HTTP client (including browser `fetch` with `credentials: "omit"`).
+- **Rate limiting scoped to storage:** Storage routes have their own rate limit (`ip:/storage`, 60 requests/minute) separate from the default API rate limit. This prevents large file uploads from consuming the general rate limit budget.
+
+### Best practices
+
+- Always write files atomically (tmp + rename) to prevent serving partial uploads.
+- Include the HTTP method in the HMAC payload to prevent a signed upload URL from being reused as a download URL.
+- Include `mimeType` and `maxBytes` in the upload signature so the client can't change the content type or upload a larger file than declared.
+- Use constant-time comparison for HMAC verification to prevent timing attacks.
+
+### Gotchas to remember
+
+- **Hono sub-router path handling:** When mounting a sub-router via `app.route("/storage", router)`, the full request path (including `/storage/`) is preserved in `c.req.path`. The key extraction function handles both cases (full path with `/storage/` prefix and stripped path) for robustness.
+- **`URL.search` includes the leading `?`:** When constructing request URLs in tests from `new URL(url).pathname + new URL(url).search`, don't add an extra `?` between them — `.search` already includes it.
+- **Mime type constraints already in documents service:** The `ALLOWED_MIME_TYPES` (`application/pdf`, `image/png`, `image/jpeg`) and `MAX_FILE_SIZE` (25 MB) checks were implemented in Phase 7.6 in the `createDocument` service function, so Phase 8 didn't need to add them separately.
+
+### Next up
+
+Phase 9 — Role-scoped aggregate endpoints: dashboard views for each portal (student, university, bank, counselor, admin).
