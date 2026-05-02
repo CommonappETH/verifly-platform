@@ -313,18 +313,92 @@ Each portal has dashboard views that would otherwise need 3+ round-trips. Add th
 
 Replace mock data with `@verifly/api-client` calls. One app at a time; verify in a browser before moving on.
 
+Migration order agreed with user (2026-04-23): **university → bank → student → counselor → admin**.
+
+### 10.1 — Shared infra pass 1 (DONE 2026-04-24)
+
 - [x] Env var in each app: `VITE_API_BASE_URL` (dev: `http://localhost:8787`). AWS URLs added in Phase 15. (Added `apps/<app>/.env.example` in all 5 frontends.)
 - [x] `apps/<x>/src/lib/api.ts` exports a per-app `apiClient` built from `createClient({ baseUrl })`. (Deviation: filename is `api-client.ts` not `api.ts` — namingconventions.md §1.2 requires kebab-case, and `bank` already had a pre-existing mock-wiring `lib/api.ts` that will be deleted when `bank` is migrated. Using a dedicated filename avoids a collision during the shared-infra pass.)
 - [x] `apps/<x>/src/auth/AuthProvider.tsx` — React context that calls `GET /auth/me` on mount; exposes `user`, `login`, `logout`. (Adds `refresh` too so routes can re-hydrate after a mutation that changes user identity.)
 - [x] **Phase 11.1 pulled forward** — CORS middleware added now so frontends can hit the API cross-origin with cookies during Phase 10 dogfooding. See checklist §11.1 below (boxes ticked there too).
-- [ ] **student** — migrate mock routes one at a time; delete `apps/student/src/lib/mock-data.ts` last.
-- [ ] **university** — swap `lib/types.ts` mock generators for API calls.
-- [ ] **bank** — swap mock verifications list/detail/decision flow.
-- [ ] **counselor** — swap mock students/requests flows.
-- [ ] **admin** — delete `apps/admin/src/lib/admin-mock/` once all routes bind to API.
-- [ ] After each app: run the app, walk the golden path, fix any DTO mismatches in `@verifly/api-client` or `@verifly/types`.
-- [ ] Verify: `grep -R "mock" apps/ | grep -v node_modules` returns nothing substantive.
-- [ ] Commit per app: `refactor(<app>): replace mocks with @verifly/api-client`.
+
+### 10.2 — Seed script (Phase 14.3 minimal-fixture pulled forward)
+
+Pulled forward because every per-app migration needs a known-good DB to dogfood, and manual `/auth/register` curling doesn't compose with future CI smoke tests, the Phase 16 golden-path test, or contributor onboarding. The full Phase 14.3 fixture lives here so we never write the script twice.
+
+- [ ] Create `apps/api/src/scripts/seed.ts` — idempotent Bun CLI:
+  - 1 admin (`admin@verifly.test`).
+  - 2 universities (`organizations` rows with `kind='university'`) + 1 linked `university_user` per university (so each university has a real login).
+  - 2 banks (`organizations` rows with `kind='bank'`) + 1 linked `bank_user` per bank.
+  - 1 counselor (`counselors` row + linked user).
+  - 3 students with `students` profiles + 1 guardian each.
+  - 5 applications across lifecycle states (`draft`, `submitted`, `under_review`, `committee_review`, `admitted`).
+  - 3 verifications across states (`pending_submission`, `pending`, `verified`).
+  - All passwords are `correct-horse-battery` (matches the integration tests so seed-loaded data is dogfooded with the same creds tests use).
+- [ ] Idempotency rule: every insert uses `ON CONFLICT DO NOTHING` keyed on a stable identifier (email for users, slug for orgs). Re-running `bun run db:seed` against a populated DB is a no-op, never duplicates.
+- [ ] Wire `bun run db:seed` in `apps/api/package.json` to `bun run src/scripts/seed.ts`.
+- [ ] Update `apps/api/.env.example` if any new seed-only env var is required (none expected).
+- [ ] Verify: `bun run db:reset && bun run db:migrate && bun run db:seed` produces a working DB; logging in via the frontend with `admin@verifly.test` succeeds.
+- [ ] Commit: `feat(api): idempotent seed script (Phase 14.3 minimal fixture pulled forward)`.
+
+When the rest of Phase 14.3 lands later (multi-app dev ergonomics, backup/restore), the seed script is reused as-is — only the orchestration scripts (`dev:all`, `reset`, backup/restore) are added then.
+
+### 10.3 — Shared infra pass 2 (architectural foundations)
+
+These are the "do them once across all 5 apps" patterns that keep the per-app migrations consistent and prevent drift. Same shape as the 10.1 shared-infra commit: mechanical, no route logic changes.
+
+- [ ] Add `@tanstack/react-query` (and `@tanstack/react-query-devtools` in dev) to each app's `package.json`. Bun-install at root.
+- [ ] Per app, create `src/lib/query-client.ts` exporting a singleton `queryClient: QueryClient` with sensible defaults (`staleTime: 30s`, `retry: 1`, `refetchOnWindowFocus: false` in dev).
+- [ ] Per app, create `src/providers/QueryProvider.tsx` wrapping `QueryClientProvider` + `ReactQueryDevtools` (`buildtime VITE_APP_ENV !== "prod"`).
+- [ ] Per app, mount `<QueryProvider>` and `<AuthProvider>` in the root shell (`src/routes/__root.tsx`'s `RootShell`). Order: `<QueryProvider><AuthProvider>{children}</AuthProvider></QueryProvider>`.
+- [ ] Add a 401 interceptor to the api-client. In `packages/api-client/src/client.ts`, expose an `onUnauthorized?: () => void` option on `createClient` (and forward through `createVeriflyClient`); call it from `handleResponse` when `res.status === 401`. Each app's `lib/api-client.ts` wires `onUnauthorized` to clear the AuthProvider state and `window.location.assign("/login")` (or the app's login route).
+- [ ] Create a shared `<ComingSoon />` component once in `packages/ui` (or per-app under `src/components/ComingSoon.tsx` if `@verifly/ui` is too heavy a contract for this — pick one and document). Props: `feature: string`, optional `description`.
+- [ ] Per app, create `src/lib/mappers.ts` as the wire→UI mapping seam. It starts empty; each per-app migration fills it. Convention: every `apiClient.x.y()` call's return value is run through a mapper in this file before reaching components, so wire-shape changes are absorbed in one place.
+- [ ] Verify: each app boots, `/auth/me` runs on mount, devtools panel shows up in the corner.
+- [ ] Commit: `feat(apps): TanStack Query + 401 interceptor + ComingSoon + mappers seam`.
+
+### 10.4 — Per-app migration loop
+
+For each app in order (university → bank → student → counselor → admin), one branch + one commit:
+
+- [ ] Run `cd apps/api && bun run dev` and `cd apps/<app> && bun run dev` in separate terminals.
+- [ ] Bind every backend-parity route to `apiClient.*.*` via TanStack Query's `useQuery` / `useMutation`. Server-state reads use `useQuery`; mutations use `useMutation` with `queryClient.invalidateQueries` on success.
+- [ ] Translate every wire response through `src/lib/mappers.ts` before it hits a component prop.
+- [ ] Routes without backend parity: replace the route component with `<ComingSoon feature="…" />`. Delete the corresponding mock data file.
+- [ ] Loading / error / empty states: use TanStack Query's `isPending` / `isError` / `data?.length === 0` flags. No bespoke `useState(isLoading)` patterns.
+- [ ] Add one e2e test per app under `apps/<app>/src/__e2e__/golden-path.test.ts` (or a Vitest jsdom test if Playwright is too heavy) that:
+  - Boots `apiClient` against a fresh test API instance (or stubs `fetch`).
+  - Renders the app's auth-gated dashboard.
+  - Walks the app's primary action (university: review an application; bank: decide a verification; student: create + submit an application; counselor: view students; admin: view dashboard).
+- [ ] Walk the golden path manually in a browser — register if needed (or log in as the seed admin/university/bank/etc.), exercise every backend-parity route, fix any DTO mismatches in `@verifly/api-client` / `@verifly/types`.
+- [ ] Per-app verification: `grep -R "mock" apps/<app> --include="*.ts" --include="*.tsx" | grep -v node_modules` returns nothing substantive.
+- [ ] Commit: `refactor(<app>): replace mocks with @verifly/api-client`.
+
+Per-app targets:
+
+- [ ] **university** — `applicants`, `applications`, `decisions` to API; `messages`, `reports`, `scholarships` to `<ComingSoon />`. Delete `apps/university/src/lib/mock-data.ts`.
+- [ ] **bank** — `requests`, `approvals`, `verification.$id` to API. Delete `apps/bank/src/lib/api.ts` (the existing mock-wiring shim) and `apps/bank/src/lib/mock-data.ts`. Bank-side messaging routes go to `<ComingSoon />` until messaging exists.
+- [ ] **student** — `applications`, `documents`, `verification`, `university.$universityId`, `applications_.$applicationId` to API. `essays`, `explore`, `messages`, `scholarships` to `<ComingSoon />`. Delete `apps/student/src/lib/mock-data.ts` last.
+- [ ] **counselor** — `students.index`, `students_.$id`, `submissions`, `document-requests` to API. `messages`, `reports` to `<ComingSoon />`. Delete `apps/counselor/src/lib/mock`.
+- [ ] **admin** — `applications`, `documents`, `users`, `verifications` to API; build admin views on top of `apiClient.portal.adminDashboard()` for the index. `reports`, `settings` to `<ComingSoon />`. Delete `apps/admin/src/lib/admin-mock/`.
+
+### 10.5 — Phase 10 exit gate
+
+- [ ] Run `grep -R "mock" apps/ --include="*.ts" --include="*.tsx" | grep -v node_modules`. Output must be empty (all 5 apps clean).
+- [ ] Run all 5 e2e tests in CI (or locally if CI not configured yet). All pass.
+- [ ] Manually walk the cross-app golden path with the seed DB: student creates an application → counselor sees it in their list → university reviews and decides → bank decides a verification → admin sees the audit trail. (Same as Phase 16's manual sweep but rehearsed now.)
+- [ ] All deferred routes (`<ComingSoon />`) have a corresponding line under "Phase 11+ follow-ups" below.
+- [ ] Commit: `chore(apps): Phase 10 exit gate — mocks fully removed`.
+
+### 10.6 — Phase 11+ follow-ups created during Phase 10
+
+Each `<ComingSoon />` route needs a backend before it can be wired up. Track them here so the work doesn't get lost.
+
+- [ ] **Messaging (across all 5 apps):** new `conversations` + `conversation_messages` tables, `POST /conversations`, `POST /conversations/:id/messages`, `GET /conversations`, RBAC scoped per portal. Phase: 11.X.
+- [ ] **Reports (university/admin):** built on top of `request_metrics` (Phase 12.1) once it exists. Phase: 12.X.
+- [ ] **Scholarships (student/university):** new `scholarships` + `scholarship_applications` tables; out of scope until product spec lands. Phase: post-1.0.
+- [ ] **Essays (student):** new `essays` table linked to applications. Phase: post-1.0.
+- [ ] **Explore (student):** university discovery / search; could be a thin wrapper over `GET /organizations?kind=university`. Phase: 11.X (low effort).
 
 ## Phase 11 — Security & production hardening
 
@@ -402,7 +476,7 @@ Replace mock data with `@verifly/api-client` calls. One app at a time; verify in
 
 - [ ] Root `package.json` script `dev:all` — run `@verifly/api` + the 5 frontends in parallel (use `bun run --filter` or `concurrently`). Color-prefixed logs.
 - [ ] Root script `reset` — stop processes, delete `apps/api/.data/` + `apps/api/.storage/`, re-run migrations + seed.
-- [ ] `apps/api/src/scripts/seed.ts` — idempotent seed: 1 admin, 2 universities, 2 banks, 3 students with guardians, 5 applications across lifecycle states, 3 verifications. Run via `bun run db:seed`.
+- [ ] `apps/api/src/scripts/seed.ts` — idempotent seed: 1 admin, 2 universities, 2 banks, 3 students with guardians, 5 applications across lifecycle states, 3 verifications. Run via `bun run db:seed`. (**Pulled forward to Phase 10.2** — when 10.2 ships, this box gets ticked with a "see Phase 10.2" pointer. The full fixture lives there so the script is written once.)
 - [ ] `apps/api/src/scripts/backup.ts` / `restore.ts` — tar `{.data,.storage}` to a timestamped archive; restore unpacks.
 
 ### 14.2 — Cron worker

@@ -1068,18 +1068,24 @@ The old `bank/src/lib/api.ts` mock shim will be deleted during the bank migratio
 
 Phase 10 step 2 — migrate the `@verifly/university` portal off mocks. Start with `src/lib/types.ts` mock generators; bind `applicants`, `applications`, `decisions` routes to `apiClient.applications.*`; walk the university golden path in a browser with the API running.
 
-### Resume point (paused 2026-04-24)
+### Resume point (re-scoped 2026-05-01)
 
-Paused mid-Phase 10 at user request. Two open questions to resolve before step 2 begins:
+Phase 10 has been re-structured into 6 sub-phases (10.1–10.6) — see `checklistBackend.md`. Decisions taken:
 
-1. **Seed data:** should we implement a minimal `bun run db:seed` now (formally Phase 14.3 scope) — admin + one university org + a linked `university_user` + one bank org + a linked `bank_user` + a couple of students — so the user can dogfood each portal without curling `/auth/register` by hand? Or register accounts through the frontends manually?
-2. **Scope of the university migration:** routes `messages` / `reports` / `scholarships` have no backend parity yet. Leave them wired to their existing mocks with a `// TODO: Phase 11+` comment, or stub them to empty states until their backends exist?
+1. **Seed data: full Phase 14.3 fixture, pulled forward** as Phase 10.2. Idempotent script, written once, reused later. Manual `/auth/register` curling doesn't compose with CI smoke tests, the Phase 16 sweep, or contributor onboarding.
+2. **Out-of-scope routes (`messages` / `reports` / `scholarships` / `essays` / `explore`): `<ComingSoon />` stubs**, mocks deleted. Empty-stating with mocks behind the scenes is hiding the mock; a `<ComingSoon />` is honest and lets the Phase 10 mock-sweep gate pass cleanly. Each gets a Phase 11+ follow-up line in the checklist.
 
-Once both are answered, the per-app dogfooding loop is:
+Architectural patterns added to Phase 10.3 before per-app migrations begin:
 
-1. `cd apps/api && bun run dev` (copy `.env.example` → `.env` first if not already; defaults boot, but `ALLOWED_ORIGINS` must include the app's dev port).
-2. `cd apps/university && bun run dev` in another terminal.
-3. Assistant migrates `src/lib/types.ts` mock generators + the 3 in-scope route files; user reloads and walks the golden path; assistant fixes DTO mismatches in `@verifly/api-client` / `@verifly/types` as they surface.
-4. Commit per app: `refactor(university): replace mocks with @verifly/api-client`.
+- **TanStack Query** for every server-state read; no raw `useEffect` + `apiClient` pattern.
+- **Wire types vs UI types** mapper seam in `apps/<app>/src/lib/mappers.ts` so wire-shape changes don't ripple through components.
+- **One e2e test per app** under `apps/<app>/src/__e2e__/golden-path.test.ts` so subsequent migrations don't regress the previous ones.
+- **Centralized 401 interceptor** wired through `createClient`'s new `onUnauthorized` callback — one redirect rule, not 30 try/catches.
 
-Migration order agreed with user: **university → bank → student → counselor → admin**.
+Resume order:
+
+1. **Phase 10.2** — write the seed script (`apps/api/src/scripts/seed.ts`), idempotent, full fixture. Commit.
+2. **Phase 10.3** — TanStack Query + 401 interceptor + ComingSoon + mappers seam across all 5 apps. Commit.
+3. **Phase 10.4 (university first)** — branch, migrate `applicants` / `applications` / `decisions` to API + `<ComingSoon />` stubs for the rest, e2e test, manual browser walkthrough, commit.
+4. Repeat 10.4 for bank → student → counselor → admin in order.
+5. **Phase 10.5** — exit gate: `grep -R "mock" apps/` empty, all e2e tests green, manual cross-app golden path against the seed DB.
