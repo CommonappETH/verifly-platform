@@ -1,15 +1,3 @@
-import type { StatusBadgeProps, StatusBadgeTone } from "@verifly/ui";
-import type { RequestStatus } from "./types";
-
-const map: Record<RequestStatus, { tone: StatusBadgeTone; label: string }> = {
-  pending: { tone: "warning", label: "Pending" },
-  under_review: { tone: "info", label: "Under Review" },
-  approved: { tone: "success", label: "Approved" },
-  rejected: { tone: "destructive", label: "Rejected" },
-};
-
-export function statusBadgeProps(
-  status: RequestStatus,
-): Pick<StatusBadgeProps, "label" | "tone"> {
-  return map[status];
-}
+// Re-export the canonical mapper so legacy import sites keep working.
+// New code should import directly from `@/lib/mappers`.
+export { verificationStatusBadge as statusBadgeProps } from "./mappers";

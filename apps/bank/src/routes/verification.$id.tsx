@@ -1,365 +1,319 @@
-import { useRef, useState } from "react";
-import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/bank/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@verifly/ui";
-import { Button } from "@verifly/ui";
-import { Badge } from "@verifly/ui";
-import { Checkbox } from "@verifly/ui";
-import { Input } from "@verifly/ui";
-import { Label } from "@verifly/ui";
-import { Textarea } from "@verifly/ui";
-import { Separator } from "@verifly/ui";
 import {
+  Button, Card, CardContent, CardHeader, CardTitle,
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  EmptyState, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Separator, StatusBadge, Textarea,
 } from "@verifly/ui";
+import { ApiError } from "@verifly/api-client";
+import { apiClient } from "@/lib/api-client";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@verifly/ui";
-import { StatusBadge } from "@verifly/ui";
-import { statusBadgeProps } from "@/lib/status-badge";
-import { useRequests } from "@/lib/use-requests";
+  formatCurrency, formatDateTime,
+  isDecided, isPendingForBank,
+  mapVerificationDetail,
+  verificationStatusBadge,
+  type WireVerification,
+} from "@/lib/mappers";
 import {
-  approveRequest, rejectRequest, markUnderReview, requestMoreInfo, addInternalNote,
-  setChecklist, formatCurrency, formatDate, formatDateTime, getRequestById, uploadDocument,
-} from "@/lib/api";
-import { rejectionReasons, messageTemplates } from "@/lib/mock-data";
-import {
-  ArrowLeft, CheckCircle2, XCircle, Eye, MessageSquare, FileText, Building2, User, GraduationCap, Wallet, FileCheck, FileX, Clock, Upload,
+  ArrowLeft, CheckCircle2, XCircle, GraduationCap, User, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { ChecklistState } from "@/lib/types";
 
 export const Route = createFileRoute("/verification/$id")({
-  loader: ({ params }) => {
-    const r = getRequestById(params.id);
-    if (!r) throw notFound();
-    return { id: r.id };
-  },
-  notFoundComponent: () => (
-    <AppShell>
-      <div className="text-center py-16">
-        <h2 className="text-xl font-semibold">Verification not found</h2>
-        <Link to="/requests" className="text-sm text-primary underline mt-2 inline-block">Back to requests</Link>
-      </div>
-    </AppShell>
-  ),
+  head: ({ params }) => ({ meta: [{ title: `${params.id} — Verifly Bank Portal` }] }),
   component: VerificationDetail,
 });
+
+const REJECTION_REASONS = [
+  "Insufficient funds",
+  "Account does not belong to the guardian",
+  "Documents incomplete or unverified",
+  "Mismatched account holder name",
+  "Fraud / authenticity concern",
+  "Other",
+] as const;
 
 function VerificationDetail() {
   const { id } = Route.useParams();
   const router = useRouter();
-  const requests = useRequests();
-  const r = requests.find((x) => x.id === id);
+  const qc = useQueryClient();
 
-  if (!r) {
+  const verificationQuery = useQuery({
+    queryKey: ["verification", id],
+    queryFn: async () => {
+      const res = await apiClient.verifications.get(id);
+      return res.data as unknown as WireVerification;
+    },
+  });
+
+  const studentId = verificationQuery.data?.studentId;
+  const studentQuery = useQuery({
+    queryKey: ["student", studentId],
+    queryFn: () => apiClient.students.get(studentId!).then((r) => r.data),
+    enabled: Boolean(studentId),
+  });
+
+  const decideMutation = useMutation({
+    mutationFn: (input: {
+      decision: "verified" | "rejected";
+      verifiedAmount?: number;
+      rejectionReason?: string;
+    }) => apiClient.verifications.decide(id, input),
+    onSuccess: (_, variables) => {
+      void qc.invalidateQueries({ queryKey: ["verification", id] });
+      void qc.invalidateQueries({ queryKey: ["verifications"] });
+      void qc.invalidateQueries({ queryKey: ["portal", "bank", "dashboard"] });
+      toast.success(
+        variables.decision === "verified"
+          ? "Verification approved"
+          : "Verification rejected",
+      );
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  if (verificationQuery.isError) {
+    const err = verificationQuery.error;
+    const notFound = err instanceof ApiError && err.status === 404;
     return (
       <AppShell>
-        <div className="text-center py-16">Request not found.</div>
+        <div className="text-center py-16">
+          <h2 className="text-xl font-semibold">
+            {notFound ? "Verification not found" : "Couldn't load verification"}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-2">{(err as Error).message}</p>
+          <Link to="/requests" className="text-sm text-primary underline mt-4 inline-block">
+            Back to requests
+          </Link>
+        </div>
       </AppShell>
     );
   }
 
-  const updateChecklist = (key: keyof ChecklistState, value: boolean) => {
-    setChecklist(r.id, { ...r.checklist, [key]: value });
-  };
+  if (verificationQuery.isPending) {
+    return (
+      <AppShell>
+        <EmptyState title="Loading verification…" />
+      </AppShell>
+    );
+  }
+
+  const v = mapVerificationDetail(verificationQuery.data, studentQuery.data ?? undefined);
+  const canDecide = isPendingForBank(v.status);
 
   return (
     <AppShell>
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.history.back()}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/requests">
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to requests
+          </Link>
         </Button>
 
-        <Card className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm text-muted-foreground">{r.code}</span>
-                <StatusBadge {...statusBadgeProps(r.status)} />
+        {/* Header card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between flex-wrap gap-3">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <CardTitle className="text-xl font-mono">{v.code}</CardTitle>
+                  <StatusBadge {...verificationStatusBadge(v.status)} />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Submitted {formatDateTime(v.submittedAt)}
+                  {v.decidedAt && (
+                    <>
+                      {" "}
+                      · Decided {formatDateTime(v.decidedAt)}
+                    </>
+                  )}
+                </p>
               </div>
-              <h1 className="text-2xl font-bold mt-1">{r.student.fullName}</h1>
-              <p className="text-sm text-muted-foreground">Guardian: {r.guardian.fullName} · Submitted {formatDate(r.submittedAt)}</p>
+              <div className="text-right">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Requested
+                </div>
+                <div className="text-2xl font-semibold">
+                  {formatCurrency(v.requestedAmount, v.currency)}
+                </div>
+                {v.verifiedAmount != null && (
+                  <div className="text-sm text-emerald-700 mt-1">
+                    Verified: {formatCurrency(v.verifiedAmount, v.currency)}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="text-right">
-              <div className="text-xs text-muted-foreground">Requested</div>
-              <div className="text-2xl font-bold">{formatCurrency(r.requestedAmount, r.currency)}</div>
-            </div>
-          </div>
+          </CardHeader>
+          {v.rejectionReason && (
+            <CardContent>
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                <span className="font-medium">Rejection reason:</span> {v.rejectionReason}
+              </div>
+            </CardContent>
+          )}
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><GraduationCap className="h-4 w-4" /> Student Information</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                <Field label="Full Name" value={r.student.fullName} />
-                <Field label="Country" value={r.student.country} />
-                <Field label="Intended Study" value={r.student.intendedStudy ?? "—"} />
-                <Field label="University" value={r.student.university ?? "—"} />
-                <Field label="Email" value={r.student.email ?? "—"} />
-              </CardContent>
-            </Card>
+        <div className="grid gap-4 md:grid-cols-3">
+          {/* Student panel */}
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-4 w-4" /> Student
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <Row label="Name" value={v.studentName} />
+              <Row label="Email" value={v.studentEmail ?? "—"} />
+              <Row label="Country" value={v.studentCountry ?? "—"} />
+              <Row label="Nationality" value={v.studentNationality ?? "—"} />
+              <Separator />
+              <Row
+                label="GPA"
+                icon={<GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />}
+                value={v.studentGpa != null ? v.studentGpa.toFixed(2) : "—"}
+              />
+              <Row label="Intended Study" value={v.studentIntendedStudy ?? "—"} />
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> Guardian & Account</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                <Field label="Guardian Name" value={r.guardian.fullName} />
-                <Field label="Relationship" value={r.guardian.relationship} />
-                <Field label="Account Holder" value={r.account.holderName} />
-                <Field label="Account Number" value={r.account.accountNumber} mono />
-                <Field label="Branch" value={r.account.branch} />
-                <Field label="Currency" value={r.account.currency} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Wallet className="h-4 w-4" /> Financial Details</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4 text-sm">
-                <Field label="Requested Amount" value={formatCurrency(r.requestedAmount, r.currency)} />
-                <Field label="Currency" value={r.currency} />
-                {r.scholarshipAdjustedAmount && (
-                  <Field label="Scholarship-Adjusted" value={formatCurrency(r.scholarshipAdjustedAmount, r.currency)} />
-                )}
-                {r.verifiedAmount && (
-                  <Field label="Verified Amount" value={formatCurrency(r.verifiedAmount, r.currency)} />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> Documents</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <BankStatementUpload requestId={r.id} document={r.documents.find((d) => d.name.toLowerCase().includes("bank statement"))} />
-                {r.documents.filter((d) => !d.name.toLowerCase().includes("bank statement")).map((d) => (
-                  <div key={d.id} className="flex items-center justify-between rounded-md border p-3">
-                    <div className="flex items-center gap-3">
-                      {d.status === "missing" ? <FileX className="h-4 w-4 text-rose-600" /> : <FileCheck className="h-4 w-4 text-emerald-600" />}
-                      <div>
-                        <div className="text-sm font-medium">{d.name}</div>
-                        <div className="text-xs text-muted-foreground">{d.type}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <DocStatus status={d.status} />
-                      {d.status !== "missing" && (
-                        <Button variant="ghost" size="sm" onClick={() => toast.info(`Opening ${d.name}…`)}>
-                          <Eye className="h-3.5 w-3.5 mr-1" /> View
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Verification Checklist</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { key: "accountExists" as const, label: "Account exists" },
-                  { key: "belongsToGuardian" as const, label: "Account belongs to guardian" },
-                  { key: "fundsSufficient" as const, label: "Funds available meet required amount" },
-                  { key: "documentsVerified" as const, label: "Documents verified" },
-                ].map((item) => (
-                  <label key={item.key} className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent transition-colors">
-                    <Checkbox
-                      checked={r.checklist[item.key]}
-                      onCheckedChange={(v) => updateChecklist(item.key, !!v)}
-                    />
-                    <span className="text-sm">{item.label}</span>
-                  </label>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base">Notes & History</CardTitle></CardHeader>
-              <CardContent>
-                <NoteComposer requestId={r.id} />
-                <Separator className="my-4" />
-                <div className="space-y-3">
-                  {[...r.notes].reverse().map((n) => (
-                    <div key={n.id} className="flex gap-3">
-                      <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">
-                        {n.actor.slice(0, 1)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm">
-                          <span className="font-medium">{n.actor}</span>
-                          <span className="text-muted-foreground"> · {n.action}</span>
-                        </div>
-                        {n.note && <p className="text-sm text-muted-foreground mt-0.5">{n.note}</p>}
-                        <div className="text-xs text-muted-foreground mt-0.5">{formatDateTime(n.timestamp)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <Card className="lg:sticky lg:top-20">
-              <CardHeader><CardTitle className="text-base">Decision</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                <ApproveDialog requestId={r.id} suggestedAmount={r.requestedAmount} currency={r.currency} />
-                <RejectDialog requestId={r.id} />
+          {/* Decision panel */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wallet className="h-4 w-4" /> Decision
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {!canDecide && isDecided(v.status) ? (
+                <p className="text-sm text-muted-foreground">
+                  Decision already issued ({v.status === "verified" ? "approved" : "rejected"}).
+                </p>
+              ) : !canDecide ? (
+                <p className="text-sm text-muted-foreground">
+                  Verification is in <strong>{v.status}</strong> — student must submit it
+                  before the bank can decide.
+                </p>
+              ) : (
+                <>
+                  <ApproveDialog
+                    requestedAmount={v.requestedAmount}
+                    currency={v.currency}
+                    isPending={decideMutation.isPending}
+                    onApprove={(verifiedAmount) =>
+                      decideMutation.mutate({ decision: "verified", verifiedAmount })
+                    }
+                  />
+                  <RejectDialog
+                    isPending={decideMutation.isPending}
+                    onReject={(reason) =>
+                      decideMutation.mutate({ decision: "rejected", rejectionReason: reason })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground pt-2">
+                    Decisions are final and notify the student + linked university immediately.
+                  </p>
+                </>
+              )}
+              {decideMutation.isSuccess && (
                 <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => { markUnderReview(r.id); toast.success("Marked under review"); }}
-                  disabled={r.status === "under_review"}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.invalidate()}
+                  className="w-full"
                 >
-                  <Clock className="h-4 w-4 mr-2" /> Mark as Under Review
+                  Reload
                 </Button>
-                <RequestInfoDialog requestId={r.id} />
-
-                <Separator className="my-4" />
-                <div className="text-xs space-y-1.5">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Status</span><StatusBadge {...statusBadgeProps(r.status)} /></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Assigned</span><span className="font-medium">{r.assignedTo ?? "Unassigned"}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Submitted</span><span>{formatDate(r.submittedAt)}</span></div>
-                  {r.decisionAt && <div className="flex justify-between"><span className="text-muted-foreground">Decision</span><span>{formatDate(r.decisionAt)}</span></div>}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4" /> University</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-sm">{r.student.university ?? "—"}</p>
-                <p className="text-xs text-muted-foreground mt-1">Will be notified upon decision.</p>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppShell>
   );
 }
 
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Row({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: React.ReactNode;
+  icon?: React.ReactNode;
+}) {
   return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`mt-0.5 ${mono ? "font-mono" : "font-medium"}`}>{value}</div>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5">
+        {icon}
+        {label}
+      </span>
+      <span className="text-sm font-medium text-right">{value}</span>
     </div>
   );
 }
 
-function DocStatus({ status }: { status: "uploaded" | "missing" | "reviewed" }) {
-  const map = {
-    uploaded: { label: "Uploaded", cls: "bg-blue-100 text-blue-800 border-blue-200" },
-    reviewed: { label: "Reviewed", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-    missing: { label: "Missing", cls: "bg-rose-100 text-rose-800 border-rose-200" },
-  };
-  const c = map[status];
-  return <Badge variant="outline" className={c.cls}>{c.label}</Badge>;
-}
+function ApproveDialog({
+  requestedAmount,
+  currency,
+  isPending,
+  onApprove,
+}: {
+  requestedAmount: number;
+  currency: string;
+  isPending: boolean;
+  onApprove: (verifiedAmount: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  // requestedAmount is in minor units. UI shows major; we convert on submit.
+  const [amount, setAmount] = useState(String(Math.round(requestedAmount / 100)));
 
-function NoteComposer({ requestId }: { requestId: string }) {
-  const [note, setNote] = useState("");
-  return (
-    <div className="space-y-2">
-      <Textarea placeholder="Add an internal note…" value={note} onChange={(e) => setNote(e.target.value)} />
-      <Button
-        size="sm"
-        onClick={() => {
-          if (!note.trim()) return;
-          addInternalNote(requestId, note.trim());
-          setNote("");
-          toast.success("Note added");
-        }}
-      >
-        Add note
-      </Button>
-    </div>
-  );
-}
+  function handleSubmit() {
+    const major = Number(amount);
+    if (!Number.isFinite(major) || major < 0) return;
+    onApprove(Math.round(major * 100));
+    setOpen(false);
+  }
 
-function BankStatementUpload({ requestId, document }: { requestId: string; document?: import("@/lib/types").VerificationDocument }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const uploaded = document && document.status !== "missing";
   return (
-    <div className="rounded-md border border-dashed p-4 bg-muted/30">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-start gap-3">
-          <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-            <Upload className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold">Bank Statement</div>
-            <div className="text-xs text-muted-foreground">
-              {uploaded
-                ? `${document!.name} · uploaded ${document!.uploadedAt ? formatDate(document!.uploadedAt) : ""}`
-                : "Upload the official 3-month bank statement issued by your branch."}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {uploaded && <DocStatus status={document!.status} />}
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              uploadDocument(requestId, file.name, "Bank Statement (3 months)");
-              toast.success("Bank statement uploaded");
-              if (inputRef.current) inputRef.current.value = "";
-            }}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full" variant="default" disabled={isPending}>
+          <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Approve verification</DialogTitle>
+          <DialogDescription>
+            Confirm the verified amount. Defaults to the requested amount; lower it if the
+            available funds are less than requested.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="verifiedAmount">Verified amount ({currency})</Label>
+          <Input
+            id="verifiedAmount"
+            type="number"
+            min={0}
+            step={1}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
           />
-          <Button size="sm" variant={uploaded ? "outline" : "default"} onClick={() => inputRef.current?.click()}>
-            <Upload className="h-3.5 w-3.5 mr-1" /> {uploaded ? "Replace" : "Upload"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ApproveDialog({ requestId, suggestedAmount, currency }: { requestId: string; suggestedAmount: number; currency: string }) {
-  const [open, setOpen] = useState(false);
-  const [amount, setAmount] = useState(String(suggestedAmount));
-  const [note, setNote] = useState("");
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="w-full justify-start bg-emerald-600 hover:bg-emerald-700 text-white">
-          <CheckCircle2 className="h-4 w-4 mr-2" /> Approve Verification
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Approve Verification</DialogTitle>
-          <DialogDescription>Confirm the verified amount available in the account.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label>Verified amount ({currency})</Label>
-            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
-          <div>
-            <Label>Note (optional)</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Stored in whole units; backend converts to minor units automatically.
+          </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            onClick={() => {
-              approveRequest(requestId, Number(amount), note);
-              toast.success("Verification approved");
-              setOpen(false);
-            }}
-          >
-            Confirm Approval
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? "Approving…" : "Confirm approval"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -367,104 +321,70 @@ function ApproveDialog({ requestId, suggestedAmount, currency }: { requestId: st
   );
 }
 
-function RejectDialog({ requestId }: { requestId: string }) {
+function RejectDialog({
+  isPending,
+  onReject,
+}: {
+  isPending: boolean;
+  onReject: (reason: string) => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState<string>("");
+  const [reason, setReason] = useState<string>(REJECTION_REASONS[0]);
   const [note, setNote] = useState("");
+
+  function handleSubmit() {
+    const fullReason = note ? `${reason}: ${note}` : reason;
+    onReject(fullReason);
+    setOpen(false);
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full justify-start text-rose-700 border-rose-200 hover:bg-rose-50 hover:text-rose-800">
-          <XCircle className="h-4 w-4 mr-2" /> Reject Verification
+        <Button className="w-full" variant="destructive" disabled={isPending}>
+          <XCircle className="h-4 w-4 mr-2" /> Reject
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reject Verification</DialogTitle>
-          <DialogDescription>A reason is required for audit purposes.</DialogDescription>
+          <DialogTitle>Reject verification</DialogTitle>
+          <DialogDescription>
+            Pick a primary reason and optionally add detail. The student and linked university
+            will see the reason.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <Label>Reason *</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="reason">Reason</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+              <SelectTrigger id="reason">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {rejectionReasons.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                {REJECTION_REASONS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Note (optional)</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
+          <div className="space-y-1.5">
+            <Label htmlFor="note">Additional detail (optional)</Label>
+            <Textarea
+              id="note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            variant="destructive"
-            disabled={!reason}
-            onClick={() => {
-              rejectRequest(requestId, reason, note);
-              toast.success("Verification rejected");
-              setOpen(false);
-            }}
-          >
-            Confirm Rejection
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function RequestInfoDialog({ requestId }: { requestId: string }) {
-  const [open, setOpen] = useState(false);
-  const [tpl, setTpl] = useState(messageTemplates[0].id);
-  const [body, setBody] = useState(messageTemplates[0].body);
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full justify-start">
-          <MessageSquare className="h-4 w-4 mr-2" /> Request More Information
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Request More Information</DialogTitle>
-          <DialogDescription>Send a message to the student.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label>Template</Label>
-            <Select
-              value={tpl}
-              onValueChange={(v) => {
-                setTpl(v);
-                const t = messageTemplates.find((x) => x.id === v);
-                if (t) setBody(t.body);
-              }}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {messageTemplates.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Message</Label>
-            <Textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            onClick={() => {
-              requestMoreInfo(requestId, body);
-              toast.success("Message sent");
-              setOpen(false);
-            }}
-          >
-            Send
+          <Button variant="destructive" onClick={handleSubmit} disabled={isPending}>
+            {isPending ? "Rejecting…" : "Confirm rejection"}
           </Button>
         </DialogFooter>
       </DialogContent>

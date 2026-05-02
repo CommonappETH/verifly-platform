@@ -1380,3 +1380,87 @@ The choice to only update *university*'s `AppShell` for the redirect-on-noauth b
 ### Next up
 
 Phase 10.4 continues with `bank`. The university template — TanStack Query for everything backend-parity, `<ComingSoon />` stubs, mappers seam, deleted mock data, mappers unit tests — applies as-is. The bank-specific shell (`apps/bank/src/components/bank/`) gets the same `useAuth()` + role gate AppShell treatment that university got in 10.3a.
+
+---
+
+## §27 — Phase 10.4 (bank): second per-app migration
+
+### What was done
+
+Migrated `@verifly/bank` off the mock layer end-to-end using the university template established in §25.
+
+Routes touched:
+
+- **`/` (dashboard)** — `apiClient.portal.bankDashboard()`. Stats cards driven by `counts.pending` + `counts.underReview`; "median time-to-decision" formatted from ms → hours; recent decisions split into approved/rejected lists.
+- **`/requests`** — paginated table over `apiClient.verifications.list({ limit: 100 })`, scoped to the bank user's bank by the backend's RBAC. Per-row `useQueries` to hydrate student names. Filters: status (full 6-value enum), high-amount, recently-submitted.
+- **`/approvals`** — same data source, filtered to decided (`verified` / `rejected` / `pending`).
+- **`/verification/:id`** — detail page: `apiClient.verifications.get` + dependent `apiClient.students.get`. Approve dialog (verifiedAmount input, converts UI whole-currency to wire minor units before mutation), Reject dialog (canned reason picker + free-text note), both fire `apiClient.verifications.decide` via `useMutation`.
+- **TopBar code-search** — `apiClient.verifications.lookupByCode` mutation; on hit navigates to the detail page; on miss shows a toast.
+- **`/messages`, `/reports`** — `<ComingSoon />` stubs.
+
+New seam:
+
+- `apps/bank/src/lib/mappers.ts` — `WireVerification` + a narrow `VerificationStatus` (6 backend values: `pending_submission`, `pending`, `under_review`, `more_info_needed`, `verified`, `rejected`). Plus `mapVerificationRow` / `mapVerificationDetail`, `verificationStatusBadge`, `isDecided` / `isPendingForBank`, `formatCurrency` (minor → major), `formatDate`, `formatDateTime`. 13-test unit suite.
+- `lib/status-badge.ts` shrunk to a single re-export so legacy import sites still work.
+
+Auth wiring:
+
+- `AppShell` gated on `useAuth().user?.role === "bank"`; un-authed visitors bounce to `/login`.
+- `AppSidebar` shows the real user's name (with fallback to email) + a sign-out button.
+- `TopBar` uses the real user identity for the avatar bubble.
+
+Deletions:
+
+- `apps/bank/src/lib/api.ts` (128 lines, mock-wiring shim that subscribed component renders to an in-memory store).
+- `apps/bank/src/lib/mock-data.ts` (180 lines).
+- `apps/bank/src/lib/types.ts` (103 lines, mock-only rich shapes for guardian/account/checklist).
+- `apps/bank/src/lib/use-requests.ts` (17 lines, the listener-based hook over the mock store).
+
+Tooling:
+
+- `apps/bank/tsconfig.json` adds `"exclude": ["src/**/*.test.ts", ...]` (matches university).
+
+### Why it was done
+
+Bank is the second concrete migration, validating that the template scales. The route mix is similar to university (list + detail + dashboard + decide-mutation), and the wire-vs-UI shape drift is similar enough that the mappers seam works the same way. Doing two migrations with identical structure proves the pattern; the remaining three (student, counselor, admin) just lift it.
+
+The bank-specific concession is the **minor-units currency conversion**: backend stores amounts in minor units (cents), UI shows whole currency. The mapper exposes `formatCurrency` for display and the approve dialog handles the inverse — the UI input is in dollars, the mutation payload is in cents (`Math.round(major * 100)`). This boundary lives in the dialog component, not in the mapper, because it's a write-side concern (mappers handle reads).
+
+### How it works
+
+**RBAC scoping is server-side, transparent to the UI.** `apiClient.verifications.list()` returns only the bank user's bank's verifications because `apps/api/src/routes/verifications/index.ts` filters by `bankId` for callers with role `bank` (see Phase 7.5). The frontend doesn't pass a `bankId` — it just trusts that "list verifications" returns the right scope. Same pattern as university's applications list.
+
+**`useMutation` + `invalidateQueries` cascade.** When the bank decides a verification, the mutation invalidates three keys: the per-verification key (so the detail page refreshes), the verifications list key (so the requests/approvals tables refresh), and the dashboard key (so the counts and recent-decisions list refresh). Three invalidations is the right number — anything less and the UI shows stale data; anything more wastes round-trips.
+
+**Code-search is a `useMutation`, not a `useQuery`.** Why? It's a fire-and-forget action: type a code, hit enter, navigate-on-hit / toast-on-miss. There's no cached state to maintain — every search is a fresh action. `useMutation` handles the loading/error states without polluting the query cache with one entry per keystroke.
+
+**Dialog inputs vs. wire payload — minor-unit conversion lives in the dialog.** The approve dialog has its own `useState(amount)` initialised from `Math.round(requestedAmount / 100)` (display), and on submit calls `Math.round(major * 100)` (wire). Putting the conversion inside the dialog keeps the mutation hook simple and the boundary visible at the call site — anyone reading the code can see exactly where the conversion happens.
+
+**Rejection reason is a single string sent to the backend.** Backend's `decide` accepts `rejectionReason: string`; the dialog combines a canned reason with an optional free-text note (`"Insufficient funds: not enough for two semesters"`). The backend stores it verbatim. This matches the bank's product-side model — a structured (reason + detail) pair would have required schema changes.
+
+**TopBar uses `useAuth()` for the avatar bubble + name** so signed-in users see their real identity in the header, not the hard-coded "Officer Mensah" from the mock days.
+
+### Key concepts
+
+- **Read-side mappers, write-side adapters.** Mapping wire → UI happens in the mapper (`formatCurrency`); converting UI → wire happens at the mutation call site (the approve dialog). Both seams are explicit.
+- **`useMutation` for fire-and-forget actions.** Code search, decision submission, anything that takes one input and produces one output. `useQuery` is for cached, retried, refetched-on-focus reads.
+- **`enabled: Boolean(studentId)` guards dependent queries.** The student fetch only fires after the verification fetch resolves and we have a `studentId`. Without `enabled`, TanStack Query would fire `apiClient.students.get(undefined)` on the first render and 404.
+- **Backend-narrow enums beat canonical-wide enums for switch coverage.** Defining a local 6-value `VerificationStatus` in `mappers.ts` instead of importing the 13-value `@verifly/types` one means `Record<VerificationStatus, …>` lookups stay exhaustive and TypeScript catches typos.
+
+### Best practices
+
+- Centralise minor-unit conversion in a `formatCurrency(amount, currency)` mapper for reads. For writes, do the conversion inline at the mutation call site so the boundary is visible in the diff.
+- Cascade `invalidateQueries` for every mutation — list, per-entity, and any aggregated dashboard. Prefer key prefixes (`["verifications"]`) over exact keys when multiple list views share the same prefix.
+- Use `useMutation` for any action whose output isn't cached. Code-search, login, decision submission.
+- Replace TopBar / sidebar hard-coded user details with `useAuth().user.{name,email}` immediately after wiring up auth — otherwise the mock identity lingers and dogfooding feels off.
+
+### Mistakes to avoid
+
+- **Don't put minor-unit conversion in the api-client.** That's a UI presentation concern. The api-client should be a thin transport over the wire shape; conversion belongs at the consumer.
+- **Don't forget to invalidate the dashboard query after a mutation.** Decision flows update both the list and the dashboard counts; missing the dashboard invalidation means the user sees stale "Pending: 3" while the list shows "Pending: 2."
+- **Don't use `useQuery` for code search.** Every keystroke would create a new cache entry. Mutation is the right primitive.
+- **Don't omit `enabled: Boolean(...)` on dependent queries.** TanStack Query will fire the queryFn with whatever you passed (likely `undefined`), and the resulting URL `/students/undefined` 404s.
+
+### Next up
+
+Phase 10.4 continues with `student` — third per-app migration. Same template, more route surface (essays / explore / scholarships have no backend → ComingSoon; applications / documents / verification / dashboard wire to the API). After that: counselor → admin → 10.5 exit gate.

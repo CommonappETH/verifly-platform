@@ -1,25 +1,38 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
 import { Bell, Search } from "lucide-react";
-import { SidebarTrigger } from "@verifly/ui";
-import { Input } from "@verifly/ui";
-import { Button } from "@verifly/ui";
-import { findRequestByCode } from "@/lib/api";
+import { SidebarTrigger, Input, Button } from "@verifly/ui";
+import { ApiError } from "@verifly/api-client";
+
+import { useAuth } from "@/auth/AuthProvider";
+import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
 export function TopBar() {
   const [q, setQ] = useState("");
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const lookup = useMutation({
+    mutationFn: (code: string) =>
+      apiClient.verifications.lookupByCode(code).then((r) => r.data),
+    onSuccess: (v) => {
+      navigate({ to: "/verification/$id", params: { id: v.id } });
+      setQ("");
+    },
+    onError: (err: Error) => {
+      if (err instanceof ApiError && err.status === 404) {
+        toast.error(`No verification found for code "${q}"`);
+      } else {
+        toast.error(err.message);
+      }
+    },
+  });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const found = findRequestByCode(q);
-    if (found) {
-      navigate({ to: "/verification/$id", params: { id: found.id } as never });
-      setQ("");
-    } else {
-      toast.error(`No request found for code "${q}"`);
-    }
+    if (q.trim()) lookup.mutate(q.trim());
   };
 
   return (
@@ -30,8 +43,9 @@ export function TopBar() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search verification code (e.g. VRF-202400)…"
+          placeholder="Search by verification code (e.g. VF-SEED1)…"
           className="pl-9 h-9"
+          disabled={lookup.isPending}
         />
       </form>
       <div className="ml-auto flex items-center gap-2">
@@ -41,10 +55,12 @@ export function TopBar() {
         </Button>
         <div className="hidden sm:flex items-center gap-2 pl-2 border-l">
           <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">
-            OM
+            {(user?.name ?? user?.email ?? "?").slice(0, 2).toUpperCase()}
           </div>
           <div className="text-xs leading-tight">
-            <div className="font-medium">Officer Mensah</div>
+            <div className="font-medium truncate max-w-[160px]">
+              {user?.name ?? user?.email ?? "—"}
+            </div>
             <div className="text-muted-foreground">Verification Desk</div>
           </div>
         </div>

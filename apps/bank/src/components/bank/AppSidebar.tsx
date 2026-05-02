@@ -1,4 +1,4 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   FileSearch,
@@ -7,7 +7,10 @@ import {
   BarChart3,
   Settings,
   Building2,
+  LogOut,
 } from "lucide-react";
+
+import { useAuth } from "@/auth/AuthProvider";
 import {
   Sidebar,
   SidebarContent,
@@ -33,6 +36,8 @@ const items: { title: string; url: string; icon: typeof LayoutDashboard; exact?:
 export function AppSidebar() {
   const location = useLocation();
   const path = location.pathname;
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const isActive = (url: string, exact?: boolean) =>
     exact ? path === url : path === url || path.startsWith(url + "/") || (url === "/requests" && path.startsWith("/verification"));
@@ -75,12 +80,24 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-2 text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
           <div className="h-7 w-7 shrink-0 rounded-full bg-sidebar-accent flex items-center justify-center text-sidebar-accent-foreground text-[11px] font-semibold">
-            OM
+            {(user?.name ?? user?.email ?? "?").slice(0, 2).toUpperCase()}
           </div>
-          <div className="flex flex-col leading-tight">
-            <span className="font-medium text-sidebar-foreground">Officer Mensah</span>
+          <div className="flex flex-col leading-tight flex-1 min-w-0">
+            <span className="font-medium text-sidebar-foreground truncate">
+              {user?.name ?? user?.email ?? "—"}
+            </span>
             <span>Verification Desk</span>
           </div>
+          <button
+            onClick={() => {
+              void logout();
+              void navigate({ to: "/login" });
+            }}
+            title="Sign out"
+            className="h-7 w-7 shrink-0 rounded-md hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>
