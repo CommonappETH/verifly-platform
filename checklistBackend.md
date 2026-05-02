@@ -343,6 +343,15 @@ Pulled forward because every per-app migration needs a known-good DB to dogfood,
 
 When the rest of Phase 14.3 lands later (multi-app dev ergonomics, backup/restore), the seed script is reused as-is — only the orchestration scripts (`dev:all`, `reset`, backup/restore) are added then.
 
+### 10.3a — Per-app login routes (added during 10.4-university)
+
+Pulled in once it became clear the AuthProvider's 401 redirect target had to actually exist before any per-app migration could be dogfooded in a browser. Added across all 5 apps in one shared-infra mini-pass.
+
+- [x] `apps/<app>/src/auth/role.ts` — exports `EXPECTED_ROLE: UserRole` and `PORTAL_NAME` per app. Backend `/auth/login` is role-agnostic; the gate has to live on the client. Per-app values: admin/bank/counselor/student/university.
+- [x] `apps/<app>/src/routes/login.tsx` — `<Card>`-wrapped email/password form using `useAuth().login`. On success, navigates to `/`. On role mismatch, signs the user back out and explains. Friendly error copy for 401 (invalid creds) and 429 (rate-limited). Already-signed-in-with-the-right-role users get redirected to `/`.
+- [x] **university only** — `AppShell` gated on `useAuth().user?.role === EXPECTED_ROLE`; un-authed users redirected to `/login`, sidebar gets a sign-out button + the real user's name. The other four apps' shells get the same treatment during their own Phase 10.4 migrations (deliberately scoped to keep this commit small).
+- [x] Each placeholder shows the seeded credential for that portal so the dogfooder can copy-paste during testing.
+
 ### 10.3 — Shared infra pass 2 (architectural foundations)
 
 These are the "do them once across all 5 apps" patterns that keep the per-app migrations consistent and prevent drift. Same shape as the 10.1 shared-infra commit: mechanical, no route logic changes.

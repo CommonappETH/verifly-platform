@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScholarshipsRouteImport } from './routes/scholarships'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as DecisionsRouteImport } from './routes/decisions'
 import { Route as ApplicationsRouteImport } from './routes/applications'
 import { Route as ApplicantsRouteImport } from './routes/applicants'
@@ -37,6 +38,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DecisionsRoute = DecisionsRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/applicants': typeof ApplicantsRoute
   '/applications': typeof ApplicationsRoute
   '/decisions': typeof DecisionsRoute
+  '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/reports': typeof ReportsRoute
   '/scholarships': typeof ScholarshipsRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/applicants': typeof ApplicantsRoute
   '/applications': typeof ApplicationsRoute
   '/decisions': typeof DecisionsRoute
+  '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/reports': typeof ReportsRoute
   '/scholarships': typeof ScholarshipsRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/applicants': typeof ApplicantsRoute
   '/applications': typeof ApplicationsRoute
   '/decisions': typeof DecisionsRoute
+  '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/reports': typeof ReportsRoute
   '/scholarships': typeof ScholarshipsRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/applicants'
     | '/applications'
     | '/decisions'
+    | '/login'
     | '/messages'
     | '/reports'
     | '/scholarships'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/applicants'
     | '/applications'
     | '/decisions'
+    | '/login'
     | '/messages'
     | '/reports'
     | '/scholarships'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/applicants'
     | '/applications'
     | '/decisions'
+    | '/login'
     | '/messages'
     | '/reports'
     | '/scholarships'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   ApplicantsRoute: typeof ApplicantsRoute
   ApplicationsRoute: typeof ApplicationsRoute
   DecisionsRoute: typeof DecisionsRoute
+  LoginRoute: typeof LoginRoute
   MessagesRoute: typeof MessagesRoute
   ReportsRoute: typeof ReportsRoute
   ScholarshipsRoute: typeof ScholarshipsRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/decisions': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApplicantsRoute: ApplicantsRoute,
   ApplicationsRoute: ApplicationsRoute,
   DecisionsRoute: DecisionsRoute,
+  LoginRoute: LoginRoute,
   MessagesRoute: MessagesRoute,
   ReportsRoute: ReportsRoute,
   ScholarshipsRoute: ScholarshipsRoute,

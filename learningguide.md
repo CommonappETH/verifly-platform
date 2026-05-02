@@ -1313,3 +1313,70 @@ The migration deliberately drops UI complexity that the backend doesn't support 
 ### Next up
 
 Phase 10.4 continues with `bank`. The university PR is the template: apiClient via TanStack Query for everything backend-parity, `<ComingSoon />` for the rest, mappers seam absorbs wire-shape drift, mock data files deleted, mappers unit-tested. After bank: student → counselor → admin. Phase 10.5 picks up the cross-app exit gate (mock-sweep grep, e2e infra, manual cross-portal walkthrough on seed data).
+
+---
+
+## §26 — Phase 10.3a: per-app login routes
+
+### What was done
+
+Added `/login` to every portal so the AuthProvider's 401 redirect (`window.location.assign("/login")`) actually has a target. Done as a small shared-infra pass across all 5 apps.
+
+Per-app, identical files:
+
+- `apps/<app>/src/auth/role.ts` — `EXPECTED_ROLE` (one of admin/bank/counselor/student/university) and `PORTAL_NAME`. The login form rejects sessions whose role doesn't match.
+- `apps/<app>/src/routes/login.tsx` — `<Card>` form using `useAuth().login`. Friendly error copy for 401 / 429; already-signed-in-with-the-right-role users redirect to `/`; wrong-role logins sign the user back out and explain.
+
+University only (other 4 apps' shells follow during their migrations):
+
+- `apps/university/src/components/AppShell.tsx` — gated on `useAuth().user?.role === EXPECTED_ROLE`. Un-authed visitors hitting any protected route bounce to `/login` from a `useEffect`. Sidebar replaces the hard-coded "Dr. Eleanor Pierce" with the real user's name + a sign-out button.
+
+Per-app placeholder hints in the email field show the relevant seeded credential (`admin@verifly.test`, `ops@ubs.test`, etc.) so the dogfooder doesn't have to remember which one matches which app.
+
+### Why it was done
+
+Without `/login`, the AuthProvider's 401 redirect target 404s. Any expired-session test path tells the user "page not found" instead of "sign in". A login route is the smallest unblock for browser dogfooding — so it slotted in before continuing the per-app migration loop.
+
+The role gate is *client-side enforced* because the backend's `/auth/login` is intentionally role-agnostic — a single auth surface that all 5 portals share. The portals enforce who can use each surface. Without a client-side check, a student could log in to the university app and see (empty, but real) university dashboards.
+
+The choice to only update *university*'s `AppShell` for the redirect-on-noauth behaviour is deliberate scope-cutting. The other four shells get the same change inside their own Phase 10.4 migration commits — keeping this commit small and reviewable.
+
+### How it works
+
+**`role.ts` is one file per app, not a shared package.** Each portal has exactly one accepted role. Lifting this to `@verifly/ui` would mean introducing a "which portal am I in" parameter at every consumer — a cure worse than the disease for a one-line constant.
+
+**The login form's submit handler does three jobs in order:** call `apiClient.auth.login`, check the returned `user.role` against `EXPECTED_ROLE`, redirect on success or sign-out + explain on mismatch. The role check happens *after* a successful 200 from `/auth/login`, not before — the backend doesn't expose role-by-email lookups, and we don't want a side channel that leaks "which portal does this email belong to."
+
+**Wrong-role logout is fire-and-forget.** The form awaits `logout()` so the cookie is cleared before the error message renders. If `logout()` itself fails (network blip), the form still shows the error — `logout()` is wrapped in `try`/`finally` inside `AuthProvider`.
+
+**`useEffect` redirect, not a render-time guard.** Putting `if (!user) navigate(...)` directly in render would bounce too eagerly during the AuthProvider's initial `me()` call (which sets `isLoading: true` then `user: null` until the response arrives). The effect waits for `isLoading: false` before redirecting.
+
+**Loading placeholder during the brief unauthed window.** AppShell renders `Loading…` while `isLoading` is true OR while the user is being redirected. Without it, every protected page would flash an empty layout for ~50ms before the redirect runs.
+
+**TanStack Router auto-generates route types from disk.** Adding `src/routes/login.tsx` doesn't make `navigate({ to: "/login" })` valid until `routeTree.gen.ts` regenerates — which happens at `bun run dev` or `bun run build` time. The router-plugin Vite picks this up; the typechecker doesn't until the file refreshes. After one build, `/login` becomes a known route and the type errors clear.
+
+### Key concepts
+
+- **One auth surface, multiple portals.** A single backend `/auth/login` plus per-app role gates is a clean separation: the backend doesn't have to know about portal topology, and the portals don't have to know about each other's roles. Each portal enforces its own gate.
+- **Don't leak role-by-email.** The role check happens after a successful login, not before. A "which portal is this email registered to?" endpoint would be a real enumeration vector — keep the surface flat.
+- **`useEffect` redirects beat render-time `<Navigate>`.** Render-time guards trip during the auth-loading window; effects wait for it to settle.
+- **Per-app `AppShell` is the right gate location.** Every protected route imports `AppShell`. The redirect lives there, once.
+
+### Best practices
+
+- Pre-fill the email placeholder with the most-likely seeded credential for the portal. Friction matters during dogfooding.
+- Show different error copy for 401 vs 429 vs network failure. "Invalid email or password" is honest; "Server error" is useless.
+- Sign the user out on role mismatch — don't just refuse the navigation. Otherwise the wrong session lingers and confuses the next page load.
+- Use a loading placeholder while `useAuth().isLoading` is true. Don't show protected content until the auth state has resolved.
+- Keep `role.ts` to two exports (the role + the portal name). Resist the urge to also export route-level role gates here — those go in `AppShell` per app.
+
+### Mistakes to avoid
+
+- **Don't put the role gate inside `apiClient`.** The client doesn't know which portal it's serving. Add a `role` arg to every call? No — keep auth state in the AuthProvider and the gate at the route level.
+- **Don't redirect at render time.** `useNavigate` from a render path either no-ops (during SSR) or trips React's render-effect ordering. Always go through `useEffect`.
+- **Don't show "Invalid credentials" on a network error.** Inspect `instanceof ApiError` and `err.status` before deciding the copy.
+- **Don't share the `AppShell` redirect logic across apps via a hook in `@verifly/ui`.** Each app has its own routing topology and sidebar layout. Five 20-line `AppShell`s are easier to maintain than one parameterised one.
+
+### Next up
+
+Phase 10.4 continues with `bank`. The university template — TanStack Query for everything backend-parity, `<ComingSoon />` stubs, mappers seam, deleted mock data, mappers unit tests — applies as-is. The bank-specific shell (`apps/bank/src/components/bank/`) gets the same `useAuth()` + role gate AppShell treatment that university got in 10.3a.

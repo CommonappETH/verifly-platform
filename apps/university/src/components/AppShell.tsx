@@ -1,10 +1,14 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import {
   LayoutDashboard, Users, FileText, GavelIcon, Award, MessageSquare,
-  BarChart3, Settings, Search, Bell,
+  BarChart3, Settings, Search, Bell, LogOut,
 } from "lucide-react";
 import { cn } from "@verifly/utils";
 import { Input } from "@verifly/ui";
+
+import { useAuth } from "@/auth/AuthProvider";
+import { EXPECTED_ROLE } from "@/auth/role";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -20,6 +24,26 @@ const NAV = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const path = location.pathname;
+  const { user, isLoading, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to /login if no session or wrong role. The 401 interceptor on
+  // the api-client also handles mid-session expiry; this catches the page
+  // load case before any API call fires.
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user || user.role !== EXPECTED_ROLE) {
+      void navigate({ to: "/login" });
+    }
+  }, [isLoading, user, navigate]);
+
+  if (isLoading || !user || user.role !== EXPECTED_ROLE) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex w-full bg-background">
@@ -62,12 +86,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="px-4 py-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-primary-soft text-primary flex items-center justify-center font-semibold text-sm">
-              EP
+              {(user.name ?? user.email).slice(0, 2).toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <div className="text-sm font-medium truncate">Dr. Eleanor Pierce</div>
-              <div className="text-xs text-muted-foreground truncate">Director of Admissions</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium truncate">{user.name ?? user.email}</div>
+              <div className="text-xs text-muted-foreground truncate">Admissions</div>
             </div>
+            <button
+              onClick={() => {
+                void logout();
+                void navigate({ to: "/login" });
+              }}
+              title="Sign out"
+              className="h-8 w-8 rounded-md hover:bg-sidebar-accent flex items-center justify-center text-muted-foreground hover:text-sidebar-accent-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>

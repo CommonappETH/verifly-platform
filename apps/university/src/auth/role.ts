@@ -1,0 +1,9 @@
+// Phase 10.4 — the role this portal accepts. The login form refuses to keep
+// a session whose role doesn't match; AppShell redirects authed users with
+// the wrong role back to /login. Backend `/auth/login` is role-agnostic, so
+// the gate has to live here on the client.
+import type { UserRole } from "@verifly/api-client";
+
+export const EXPECTED_ROLE: UserRole = "university";
+
+export const PORTAL_NAME = "University Portal";
