@@ -355,7 +355,7 @@ These are the "do them once across all 5 apps" patterns that keep the per-app mi
 - [x] Create a shared `<ComingSoon />` component once in `packages/ui` at `src/components/composed/coming-soon.tsx` (re-exported from the package barrel). Picked `@verifly/ui` over per-app duplication because the component is a pure presentational primitive — same shape across all 5 portals — and the package already hosts `<EmptyState />` of the same flavour. Props: `feature: string`, plus optional `description`, `icon`, `action`, `className`.
 - [x] Per app, create `src/lib/mappers.ts` as the wire→UI mapping seam. Empty starter file with a header comment documenting the convention; each per-app migration fills it.
 - [x] Verify: each app boots — all 5 frontend production builds succeed (`apps/<app> && bun run build`), TypeScript clean for the new files, `client.test.ts` covers the interceptor.
-- [ ] Commit: `feat(apps): TanStack Query + 401 interceptor + ComingSoon + mappers seam`.
+- [x] Commit: `feat(apps): TanStack Query + 401 interceptor + ComingSoon + mappers seam`. (Pushed to `main` as `1ae7b55`.)
 
 ### 10.4 — Per-app migration loop
 
