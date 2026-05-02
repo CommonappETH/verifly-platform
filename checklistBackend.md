@@ -339,7 +339,7 @@ Pulled forward because every per-app migration needs a known-good DB to dogfood,
 - [x] Wire `bun run db:seed` in `apps/api/package.json` to `bun run src/scripts/seed.ts`.
 - [x] Update `apps/api/.env.example` if any new seed-only env var is required (none expected). The script reads `DATABASE_URL` and `SESSION_PEPPER` — both already declared.
 - [x] Verify: `bun run db:reset && bun run db:migrate && bun run db:seed` produces a working DB; logging in via the frontend with `admin@verifly.test` succeeds. (Smoke-tested via `curl POST /auth/login` + `GET /auth/me` against a freshly-seeded DB; both return the seeded admin user.)
-- [ ] Commit: `feat(api): idempotent seed script (Phase 14.3 minimal fixture pulled forward)`.
+- [x] Commit: `feat(api): idempotent seed script (Phase 14.3 minimal fixture pulled forward)`. (Pushed to `main` as `f86cbcd`.)
 
 When the rest of Phase 14.3 lands later (multi-app dev ergonomics, backup/restore), the seed script is reused as-is — only the orchestration scripts (`dev:all`, `reset`, backup/restore) are added then.
 
