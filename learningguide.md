@@ -1144,3 +1144,88 @@ The fixture is the full Phase 14.3 set (not a smaller "minimal" version) because
 ### Next up
 
 Phase 10.3 — TanStack Query + 401 interceptor + `<ComingSoon />` + wire-vs-UI mapper seam across all 5 apps. After that, Phase 10.4 starts the per-app migration loop with university first.
+
+---
+
+## §24 — Phase 10.3: TanStack Query + 401 interceptor + ComingSoon + mappers seam
+
+### What was done
+
+The "do once across all 5 apps" architectural pass, executed in a single mechanical commit. Establishes the patterns every per-app migration in 10.4 will follow.
+
+api-client (`packages/api-client/src/client.ts`):
+- Added `onUnauthorized?: () => void` to `ClientOptions`. When a non-auth-route response returns 401, the interceptor fires before the `ApiError` is thrown.
+- Added `RequestOptions.skipUnauthorizedHandler` — per-call opt-out for the rare case where a route legitimately expects a 401 and wants to handle it itself.
+- The interceptor skips paths starting with `/auth/` so a wrong-password 401 on `/auth/login` doesn't bounce the user straight back to the login page.
+- Added `ApiClient.setOnUnauthorized(fn)` so the AuthProvider can register the handler after module load. Without it, the singleton `apiClient` would have to import the AuthProvider at construction time — a circular import.
+- `createVeriflyClient` forwards `onUnauthorized`.
+- `client.test.ts` covers all five paths: fires on non-auth 401, skips for `/auth/*`, respects the opt-out, runtime replacement works, no-op on 2xx.
+
+`@verifly/ui`:
+- New `<ComingSoon feature="…" />` composed component (`packages/ui/src/components/composed/coming-soon.tsx`). Picked the package over per-app duplication because every occurrence is presentational, identical across portals, and `<EmptyState />` already lives next to it. Re-exported from the package barrel.
+
+Per-app shared infra (admin/bank/counselor/student/university):
+- `src/lib/query-client.ts` — singleton `QueryClient` with `staleTime: 30s`, `retry: 1`, `refetchOnWindowFocus: false`.
+- `src/providers/QueryProvider.tsx` — wraps `QueryClientProvider` + `ReactQueryDevtools`. Devtools panel is mounted only when `import.meta.env.DEV` is true.
+- `src/lib/mappers.ts` — empty starter file with a header comment. Convention: every `apiClient.*.*()` return value runs through a named mapper in this file before reaching components.
+- `src/auth/AuthProvider.tsx` — now installs the api-client's 401 interceptor via `useEffect` + `setOnUnauthorized`. The handler clears local user state and redirects to `/login` (only if not already there). Uses a ref-stable callback so the interceptor is registered once on mount, not re-installed every render.
+- `src/routes/__root.tsx` — mounts the providers in `RootShell`: `<QueryProvider><AuthProvider>{children}</AuthProvider></QueryProvider>`.
+
+Root deps:
+- Added `@tanstack/react-query-devtools` and `@tanstack/query-core` to root `package.json`. The latter is a peer dep of react-query that bun's strict resolution mode wouldn't auto-hoist for the Vite/Rollup build — without it, the production bundle fails to resolve.
+
+### Why it was done
+
+A migration loop without these patterns would mean every per-app PR re-derives the same answers: "how do we do server state? where do auth errors live? what's the wire→UI shape?" Five PRs with five answers is technical debt by the time you reach `admin`. Doing the shared pass once locks the convention.
+
+The four pieces map to four specific failure modes:
+
+- **TanStack Query** → without it, every component reinvents `useState + useEffect + isLoading + error`. The pattern is correct on PR 1 and slightly different on PR 5, and one of them gets a stale-data bug.
+- **401 interceptor** → without it, every protected route writes `try { await ... } catch (e) { if (e.status === 401) navigate("/login") }`. Forget once and the user sees a `<DefaultErrorComponent>` instead of the login screen.
+- **`<ComingSoon />`** → without it, "this feature isn't backed yet" gets implemented five different ways (some with mocks, some with empty arrays, some with placeholder strings). The Phase 10 exit gate `grep -R "mock"` then has to allow exceptions.
+- **mappers seam** → without it, wire types ripple straight into component props. A wire-shape change in `@verifly/api-client` then breaks 30 components and one PR balloons.
+
+### How it works
+
+**The 401 interceptor lives in `request()`, not `handleResponse()`.** That's because we want to fire it *before* the `ApiError` is thrown — the AuthProvider gets to clear state and redirect, then the eventual `ApiError` is what `useQuery`'s `error` slot displays. If we put it inside `handleResponse`, the throw happens first and the route handler sees the error before the redirect.
+
+**Auth-route skip is by URL prefix, not by HTTP method.** A 401 on `POST /auth/login` (wrong password) and a 401 on `GET /students` (session expired) look identical at the wire level — both have status 401 and an "unauthorized" code. The only honest signal is the URL, and `/auth/*` is the right cut.
+
+**Per-call opt-out via `skipUnauthorizedHandler`.** Some routes (like a login form's "is this email taken" check) might legitimately fire 401s without wanting a redirect. The opt-out is per-call so the global behaviour can stay aggressive without painting itself into a corner.
+
+**`setOnUnauthorized` instead of constructor injection.** The api-client is a singleton imported at module load. The AuthProvider lives inside React. If the AuthProvider tried to construct the client, you'd lose the singleton; if the client tried to import the AuthProvider, you'd get a circular import. The fix is the classic registration pattern: build the client with no handler, register one later from inside React.
+
+**Ref-stable handler.** The `useEffect` that installs the interceptor only depends on the ref-stable wrapper, not on `setUser`. That means React re-renders never re-install the handler — the api-client sees one registration per mount, ever. Without this, every state change in the AuthProvider would re-call `setOnUnauthorized` and the interceptor reference would churn.
+
+**`import.meta.env.DEV` for devtools, not a custom var.** Vite already exposes `DEV` as a boolean at build time. Introducing `VITE_APP_ENV` just for this would be redundant.
+
+**Provider order: Query outside, Auth inside.** `useAuth()` calls `apiClient.auth.me()` which doesn't need TanStack Query — but a future enhancement might wrap auth queries with `useQuery` for caching, and that requires the `QueryClientProvider` to already be mounted. Putting Query outside is the order that doesn't paint us in.
+
+### Key concepts
+
+- **Singleton client + runtime-installable handler.** Lets the AuthProvider be the place that knows about navigation and state, while the client stays a plain module. Avoids circular imports without adding a DI container.
+- **URL-prefix-based interceptor scope.** "Skip for `/auth/*`" is an explicit, debuggable rule. Filtering by HTTP method or response shape would be brittle.
+- **Wire types vs. UI types are deliberately separate.** The mapper seam is a discipline, not a technology — its job is to keep the boundary load-bearing so wire changes don't ripple. Even an empty `mappers.ts` with a header comment establishes the rule.
+- **TanStack Query defaults are tuned, not eyeballed.** `staleTime: 30s` (not 0, not Infinity) means dashboard data feels fresh without re-fetching on every navigation. `retry: 1` (not 3) means a flaky network gets one retry, not three blocking ones. `refetchOnWindowFocus: false` means switching tabs doesn't trigger spam fetches.
+- **Lift shared UI to `@verifly/ui` only if it stays presentational.** `<ComingSoon />` qualifies — pure presentation, identical across portals. An auth-aware `<ProtectedRoute />` would not — it would couple `@verifly/ui` to a router/auth contract.
+
+### Best practices
+
+- Build the singleton client with *no* handler at module load. Register the handler from React via a stable wrapper. This pattern is reusable for any "side-effect that needs React context" requirement.
+- Cover the interceptor with unit tests. Stub fetch, register a mock handler, verify firing/skipping. Cheap insurance against silently regressing the redirect-on-401 contract during refactors.
+- Use `import.meta.env.DEV` for dev-only mounts (devtools, debug overlays) rather than custom env vars.
+- Put Query outside Auth. Even if auth doesn't need it today, a future caching wrapper does.
+- One `mappers.ts` per app, even when empty. The empty file with a header comment is a contract — the next contributor knows where to put a wire→UI conversion.
+
+### Mistakes to avoid
+
+- **Don't fire `onUnauthorized` from inside `handleResponse`.** The throw runs before the handler and the route handler sees an error before the redirect. Fire it from `request` after `fetch` resolves but before `handleResponse`.
+- **Don't filter the interceptor by HTTP method.** A 401 on `POST` and a 401 on `GET` are equally "session bad." The only honest filter is URL prefix.
+- **Don't pass `setUser` into the interceptor closure directly.** State changes will re-register the handler on every render. Use a ref.
+- **Don't bake `VITE_API_BASE_URL` into the api-client at construction with a stale dependency on a route hook.** Read it once at module load — the baseUrl doesn't change after build.
+- **Don't construct a new `QueryClient` in the provider.** It must be a stable singleton — re-constructing on every render destroys the cache.
+- **Don't add per-app entries for `@tanstack/react-query-*` if the monorepo's convention is root-hoisting.** Mixing the two creates two resolution paths and the wrong one will be picked at random by Vite's optimizer.
+
+### Next up
+
+Phase 10.4 — start the per-app migration loop with `@verifly/university`. The shape of every PR going forward is: TanStack Query for reads + mutations, mappers for wire→UI conversions, `<ComingSoon />` for unbacked routes, one e2e test gating the commit, golden-path manual walkthrough in a browser.

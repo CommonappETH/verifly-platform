@@ -33,8 +33,15 @@ export interface VeriflyClient extends ApiClient {
  * Creates a fully-typed Verifly API client with per-domain endpoint groups.
  * CSRF token is auto-injected from the `csrf` cookie on mutating requests.
  */
-export function createVeriflyClient(options: { baseUrl: string }): VeriflyClient {
-  const base = createClient({ baseUrl: options.baseUrl, credentials: "include" });
+export function createVeriflyClient(options: {
+  baseUrl: string;
+  onUnauthorized?: () => void;
+}): VeriflyClient {
+  const base = createClient({
+    baseUrl: options.baseUrl,
+    credentials: "include",
+    onUnauthorized: options.onUnauthorized,
+  });
 
   return Object.assign(base, {
     auth: authEndpoints(base),

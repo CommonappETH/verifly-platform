@@ -1,5 +1,7 @@
 import { Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
+import { AuthProvider } from "@/auth/AuthProvider";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -33,7 +35,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
+      <body>
+        <QueryProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryProvider>
+        <Scripts />
+      </body>
     </html>
   );
 }

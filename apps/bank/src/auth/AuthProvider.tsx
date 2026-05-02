@@ -1,13 +1,19 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ApiError } from "@verifly/api-client";
 import type { PublicUser } from "@verifly/api-client";
 
 import { apiClient } from "@/lib/api-client";
 
-// Phase 10: shared auth context for every portal. Calls `GET /auth/me` on
-// mount to hydrate the session; exposes `login`, `logout`, and refresh. No
-// role-gating happens here — routes decide what to do with `user.role`.
+// Phase 10.3: shared auth context for every portal. Calls `GET /auth/me` on
+// mount to hydrate the session; exposes `login`, `logout`, `refresh`. Also
+// installs the api-client's 401 interceptor so a non-auth route returning
+// 401 (e.g. a session expired mid-tab) clears local state and redirects to
+// the login route instead of bubbling an ApiError into the route handler.
+//
+// The interceptor is installed in a ref-stable callback that only depends on
+// the *current* setUser, so `setOnUnauthorized` is called once on mount and
+// never re-installed during the app's lifetime.
 
 interface AuthContextValue {
   user: PublicUser | null;
@@ -19,9 +25,26 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const LOGIN_PATH = "/login";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Stable handler for the 401 interceptor — captures setUser via closure
+  // but never changes identity, so the api-client only sees one registration.
+  const handlerRef = useRef<() => void>(() => {});
+  handlerRef.current = () => {
+    setUser(null);
+    if (typeof window !== "undefined" && window.location.pathname !== LOGIN_PATH) {
+      window.location.assign(LOGIN_PATH);
+    }
+  };
+
+  useEffect(() => {
+    apiClient.setOnUnauthorized(() => handlerRef.current());
+    return () => apiClient.setOnUnauthorized(undefined);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {

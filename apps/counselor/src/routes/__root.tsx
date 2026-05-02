@@ -1,5 +1,7 @@
 import { Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
+import { AuthProvider } from "@/auth/AuthProvider";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 import appCss from "../styles.css?url";
 
@@ -58,7 +60,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <QueryProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryProvider>
         <Scripts />
       </body>
     </html>

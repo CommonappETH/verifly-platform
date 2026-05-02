@@ -4,11 +4,20 @@ import type { ApiErrorBody } from "./errors";
 export interface ClientOptions {
   baseUrl: string;
   credentials?: RequestCredentials;
+  /**
+   * Called when a non-auth-route response returns 401. Use this to clear
+   * client-side auth state and redirect to a login screen. The interceptor
+   * intentionally skips paths under `/auth/*` so a wrong-password 401 on
+   * `/auth/login` doesn't trigger a redirect loop.
+   */
+  onUnauthorized?: () => void;
 }
 
 export interface RequestOptions {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /** Per-call escape hatch — set true to skip the global 401 interceptor. */
+  skipUnauthorizedHandler?: boolean;
 }
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -62,10 +71,17 @@ export interface ApiClient {
   patch<T>(path: string, body?: unknown, opts?: RequestOptions): Promise<T>;
   put<T>(path: string, body?: unknown, opts?: RequestOptions): Promise<T>;
   del<T>(path: string, opts?: RequestOptions): Promise<T>;
+  /**
+   * Replace or unset the 401 interceptor at runtime. Used by AuthProvider so
+   * the singleton client can hook into per-app auth state without a circular
+   * import at module load.
+   */
+  setOnUnauthorized(fn: (() => void) | undefined): void;
 }
 
 export function createClient(options: ClientOptions): ApiClient {
   const { baseUrl, credentials = "include" } = options;
+  let onUnauthorized = options.onUnauthorized;
 
   async function request<T>(
     method: HttpMethod,
@@ -102,6 +118,19 @@ export function createClient(options: ClientOptions): ApiClient {
       throw new NetworkError(err);
     }
 
+    if (
+      res.status === 401 &&
+      onUnauthorized &&
+      !opts?.skipUnauthorizedHandler &&
+      !path.startsWith("/auth/")
+    ) {
+      try {
+        onUnauthorized();
+      } catch {
+        // Never let an interceptor failure mask the original 401.
+      }
+    }
+
     return handleResponse<T>(res);
   }
 
@@ -120,6 +149,9 @@ export function createClient(options: ClientOptions): ApiClient {
     },
     del<T>(path: string, opts?: RequestOptions) {
       return request<T>("DELETE", path, undefined, opts);
+    },
+    setOnUnauthorized(fn: (() => void) | undefined) {
+      onUnauthorized = fn;
     },
   };
 }
