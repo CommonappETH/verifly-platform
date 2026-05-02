@@ -11,7 +11,7 @@
     "test": "bun test",
     "db:migrate": "bun run src/db/migrate.ts",
     "db:reset": "rm -f .data/*.sqlite .data/*.sqlite-shm .data/*.sqlite-wal",
-    "db:seed": "echo \"(wired in Phase 14)\""
+    "db:seed": "bun run src/scripts/seed.ts"
   },
   "dependencies": {
     "@noble/hashes": "^1.5.0",

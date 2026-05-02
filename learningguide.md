@@ -1089,3 +1089,58 @@ Resume order:
 3. **Phase 10.4 (university first)** — branch, migrate `applicants` / `applications` / `decisions` to API + `<ComingSoon />` stubs for the rest, e2e test, manual browser walkthrough, commit.
 4. Repeat 10.4 for bank → student → counselor → admin in order.
 5. **Phase 10.5** — exit gate: `grep -R "mock" apps/` empty, all e2e tests green, manual cross-app golden path against the seed DB.
+
+---
+
+## §23 — Phase 10.2: idempotent seed script (Phase 14.3 fixture pulled forward)
+
+### What was done
+
+Created `apps/api/src/scripts/seed.ts` and wired `bun run db:seed` to it. The script seeds the full Phase 14.3 fixture: 9 users (1 admin, 2 universities, 2 banks, 1 counselor, 3 students), 4 organizations (2 universities + 2 banks), 2 university_users + 2 bank_users + 1 counselor profile, 3 students with `students` profiles + 1 guardian each, 5 applications across the lifecycle states (`draft → submitted → under_review → committee_review → admitted`), and 3 verifications across states (`pending_submission`, `pending`, `verified`). All passwords are `correct-horse-battery`.
+
+The script is fully idempotent: every insert uses Drizzle's `.onConflictDoNothing()` against a deterministic `seed-…` primary key (or the natural unique index on `users.email` / `organizations.slug` / `verifications.code`). Re-running it against a populated DB inserts zero rows and never throws. Verified by running it twice in a row and observing that the row counts didn't change.
+
+### Why it was done
+
+Phase 10's per-app migration loop is "one app at a time, verify in a browser before moving on." That means each portal needs a known-good DB it can log into, not a fresh empty schema where every test starts with `/auth/register`. Pulling the seed forward unblocks the dogfood loop, and writing it idempotently means we never have to re-run `db:reset` between sessions — the script is safe to run after every checkout.
+
+The fixture is the full Phase 14.3 set (not a smaller "minimal" version) because writing the small one now would mean re-writing it bigger later. The cost difference is one extra hour of typing today; the savings are real later.
+
+### How it works
+
+**Deterministic IDs are the foundation of idempotency.** Every seeded row has a hard-coded `id` that begins with `seed-` (e.g. `seed-u-admin`, `seed-o-eth`, `seed-app-3`, `seed-v-1`). On a fresh DB the inserts succeed; on a re-run they hit the PK conflict and `.onConflictDoNothing()` swallows it. There is no nanoid generation in this script — generating a fresh random ID each run would defeat the whole point.
+
+**Users get a pre-check before hashing.** `hashPassword()` does an argon2id round (the whole point of argon2 is that it's deliberately expensive). If we just inserted-with-conflict-do-nothing, every re-run would hash 9 passwords for nothing. Instead, `seedUsers()` does a `SELECT id FROM users WHERE email = ?` first and skips the entire row if the user exists. The `.onConflictDoNothing()` on the actual insert is still there as a safety net — defence in depth — but the fast path is the email check.
+
+**Order matters because of foreign keys.** The script inserts users → organizations → role-links (university_users, bank_users, counselors) → students + guardians → applications → verifications. Reverse the order and FK violations will bring it down on the first run.
+
+**Pepper is read from `process.env.SESSION_PEPPER`** with the same default the API uses (`dev-pepper-change-me-…`). If you point the seed at a DB that was created with a different pepper, the seeded passwords won't verify. The script doesn't validate this — running with the wrong pepper just produces "wrong password" 401s on login, which is loud enough.
+
+**Logged-out smoke test:** seeded the DB on a port outside the app's normal one, logged in as `admin@verifly.test`, and called `GET /auth/me`. Both returned the seeded user — confirming the password hash is consistent with the auth route's `verifyPassword`. End-to-end proof.
+
+### Key concepts
+
+- **`onConflictDoNothing()` is portable to Postgres.** The Drizzle abstraction emits SQLite's `ON CONFLICT DO NOTHING` and Postgres's `ON CONFLICT … DO NOTHING` from the same call site. That keeps us inside the SQLite ∩ Postgres rule (`learningguide.md` §13) — when the AWS adapter swaps in `drizzle-orm/node-postgres`, the seed script keeps working unchanged.
+- **Deterministic IDs vs. natural keys.** Both are valid idempotency strategies. Use natural keys (`users.email`, `organizations.slug`) when the table already has a unique constraint there. Use deterministic synthetic IDs when there isn't a natural key (`applications`, `verifications`, role-link tables) — without one, `onConflictDoNothing` has nothing to conflict on.
+- **Fixture sharing across tests + dev.** The seed uses the same `correct-horse-battery` password the integration tests do. That means a test snapshot debugger can poke the dev DB with the same credentials the test suite expects — small but valuable consistency.
+- **Pulling fixtures forward is cheaper than writing them twice.** The "minimal" version of a fixture (admin + one of each role) costs ~30 lines. The full version costs ~150 lines and writes itself once. If you're going to need the full version eventually (Phase 14.3 explicitly requires it), pull it forward when you first feel the pain.
+
+### Best practices
+
+- Use deterministic synthetic IDs (`seed-…` prefix) for every seeded row when natural keys aren't available. Document the prefix in a header comment so future contributors recognise the pattern.
+- Pre-check expensive operations before insert. argon2 hashing is the canonical example; same logic applies to API calls in test fixtures.
+- Insert in FK-parent-first order. Children rows referencing missing parents fail loudly, but the failure points at the symptom (FK violation), not the cause (out-of-order seed).
+- Print row counts at the end of the seed run. It's a free smoke test — if the second run prints different counts than the first, idempotency is broken.
+- Match seeded passwords to test fixtures. Anyone running `bun test` already knows the password; same one in dev removes a step.
+
+### Mistakes to avoid
+
+- **Don't generate nanoids in a seed script.** Every re-run will produce different IDs, no `onConflictDoNothing` will fire, and you'll get duplicate rows multiplying every run. Hard-code the IDs.
+- **Don't skip the pre-check on user inserts and rely on `onConflictDoNothing` alone.** It works, but every re-run pays for a full argon2id hash per user. Slow and wasteful.
+- **Don't seed in arbitrary order.** Rows with FK references to other seed rows must come *after* their parents. Foreign key violations are loud but the error message points at the wrong layer.
+- **Don't put runtime decisions inside the seed.** No "if dev: seed extra rows" branches, no env-driven row count. The seed is a fixture; the fixture is the contract.
+- **Don't seed against a production DB by accident.** This script reads `DATABASE_URL`. If the env points at a real DB, it will run there. Today the API only has a dev DB so this is theoretical, but when AWS lands the seed should refuse to run unless `APP_ENV !== "prod"`.
+
+### Next up
+
+Phase 10.3 — TanStack Query + 401 interceptor + `<ComingSoon />` + wire-vs-UI mapper seam across all 5 apps. After that, Phase 10.4 starts the per-app migration loop with university first.

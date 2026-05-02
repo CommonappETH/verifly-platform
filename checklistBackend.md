@@ -326,19 +326,19 @@ Migration order agreed with user (2026-04-23): **university → bank → student
 
 Pulled forward because every per-app migration needs a known-good DB to dogfood, and manual `/auth/register` curling doesn't compose with future CI smoke tests, the Phase 16 golden-path test, or contributor onboarding. The full Phase 14.3 fixture lives here so we never write the script twice.
 
-- [ ] Create `apps/api/src/scripts/seed.ts` — idempotent Bun CLI:
+- [x] Create `apps/api/src/scripts/seed.ts` — idempotent Bun CLI:
   - 1 admin (`admin@verifly.test`).
-  - 2 universities (`organizations` rows with `kind='university'`) + 1 linked `university_user` per university (so each university has a real login).
-  - 2 banks (`organizations` rows with `kind='bank'`) + 1 linked `bank_user` per bank.
+  - 2 universities (`organizations` rows with `kind='university'`, slugs `eth-zurich`/`mit`) + 1 linked `university_user` per university (so each university has a real login).
+  - 2 banks (`organizations` rows with `kind='bank'`, slugs `ubs`/`chase`) + 1 linked `bank_user` per bank.
   - 1 counselor (`counselors` row + linked user).
   - 3 students with `students` profiles + 1 guardian each.
   - 5 applications across lifecycle states (`draft`, `submitted`, `under_review`, `committee_review`, `admitted`).
-  - 3 verifications across states (`pending_submission`, `pending`, `verified`).
+  - 3 verifications across states (`pending_submission`, `pending`, `verified`) with codes `VF-SEED1`/`VF-SEED2`/`VF-SEED3`.
   - All passwords are `correct-horse-battery` (matches the integration tests so seed-loaded data is dogfooded with the same creds tests use).
-- [ ] Idempotency rule: every insert uses `ON CONFLICT DO NOTHING` keyed on a stable identifier (email for users, slug for orgs). Re-running `bun run db:seed` against a populated DB is a no-op, never duplicates.
-- [ ] Wire `bun run db:seed` in `apps/api/package.json` to `bun run src/scripts/seed.ts`.
-- [ ] Update `apps/api/.env.example` if any new seed-only env var is required (none expected).
-- [ ] Verify: `bun run db:reset && bun run db:migrate && bun run db:seed` produces a working DB; logging in via the frontend with `admin@verifly.test` succeeds.
+- [x] Idempotency rule: every insert uses `.onConflictDoNothing()` keyed on a stable identifier. Users use deterministic `seed-u-…` ids and a pre-check on the unique email so we don't waste an argon2 hash on a no-op insert. Orgs / role-links / students / guardians / applications / verifications use deterministic `seed-…` ids on the PK plus the unique slug/code where applicable. Verified by running `bun run db:seed` twice — counts unchanged on the second run.
+- [x] Wire `bun run db:seed` in `apps/api/package.json` to `bun run src/scripts/seed.ts`.
+- [x] Update `apps/api/.env.example` if any new seed-only env var is required (none expected). The script reads `DATABASE_URL` and `SESSION_PEPPER` — both already declared.
+- [x] Verify: `bun run db:reset && bun run db:migrate && bun run db:seed` produces a working DB; logging in via the frontend with `admin@verifly.test` succeeds. (Smoke-tested via `curl POST /auth/login` + `GET /auth/me` against a freshly-seeded DB; both return the seeded admin user.)
 - [ ] Commit: `feat(api): idempotent seed script (Phase 14.3 minimal fixture pulled forward)`.
 
 When the rest of Phase 14.3 lands later (multi-app dev ergonomics, backup/restore), the seed script is reused as-is — only the orchestration scripts (`dev:all`, `reset`, backup/restore) are added then.
@@ -476,7 +476,7 @@ Each `<ComingSoon />` route needs a backend before it can be wired up. Track the
 
 - [ ] Root `package.json` script `dev:all` — run `@verifly/api` + the 5 frontends in parallel (use `bun run --filter` or `concurrently`). Color-prefixed logs.
 - [ ] Root script `reset` — stop processes, delete `apps/api/.data/` + `apps/api/.storage/`, re-run migrations + seed.
-- [ ] `apps/api/src/scripts/seed.ts` — idempotent seed: 1 admin, 2 universities, 2 banks, 3 students with guardians, 5 applications across lifecycle states, 3 verifications. Run via `bun run db:seed`. (**Pulled forward to Phase 10.2** — when 10.2 ships, this box gets ticked with a "see Phase 10.2" pointer. The full fixture lives there so the script is written once.)
+- [x] `apps/api/src/scripts/seed.ts` — idempotent seed: 1 admin, 2 universities, 2 banks, 3 students with guardians, 5 applications across lifecycle states, 3 verifications. Run via `bun run db:seed`. (**Pulled forward to Phase 10.2** — script lives at `apps/api/src/scripts/seed.ts`, fully implemented as part of Phase 10.2. Reused as-is here; no re-implementation needed.)
 - [ ] `apps/api/src/scripts/backup.ts` / `restore.ts` — tar `{.data,.storage}` to a timestamped archive; restore unpacks.
 
 ### 14.2 — Cron worker
