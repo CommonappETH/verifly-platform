@@ -1229,3 +1229,87 @@ The four pieces map to four specific failure modes:
 ### Next up
 
 Phase 10.4 — start the per-app migration loop with `@verifly/university`. The shape of every PR going forward is: TanStack Query for reads + mutations, mappers for wire→UI conversions, `<ComingSoon />` for unbacked routes, one e2e test gating the commit, golden-path manual walkthrough in a browser.
+
+---
+
+## §25 — Phase 10.4 (university): first per-app migration off mocks
+
+### What was done
+
+Migrated `@verifly/university` off the mock layer end-to-end. Every backend-parity route now reads from `apiClient` via TanStack Query; every non-parity route renders `<ComingSoon />`. Deleted the mock data file and the mock-only types file.
+
+Routes touched:
+
+- **`/` (dashboard)** — bound to `apiClient.portal.universityDashboard()`. Stats cards driven by `applicationsByStatus` group counts; recent-submissions list driven by `recentSubmissions`; pending verification banner driven by `verificationsPendingReview`.
+- **`/applicants`** — `apiClient.applications.list({ limit: 100 })` for the page, plus `useQueries` to fetch one `apiClient.students.get(id)` per unique studentId. Search + status filter + sortable columns are client-side over the result. Empty / loading / error states wired through TanStack Query's `isPending` / `isError`.
+- **`/applicants/:id`** — `apiClient.applications.get(id)` + dependent `apiClient.students.get(application.studentId)` (gated via `enabled`). State-transition buttons fire `apiClient.applications.update` via `useMutation` and invalidate the application + applications-list queries on success.
+- **`/applications`** — Kanban view of all 9 backend statuses, same data source as `/applicants`.
+- **`/decisions`** — same data source, filtered through `decisionFromStatus(application.status)`.
+- **`/messages`, `/reports`, `/scholarships`** — `<ComingSoon />` stubs with feature-specific copy and a pointer to `checklistBackend.md` §10.6.
+
+New seam:
+
+- `apps/university/src/lib/mappers.ts` — wire→UI mapping seam, plus presentational helpers (`avatarColorFor`, `initialsFor`, `displayName`), status label/tone tables, and `decisionFromStatus`. Defines a local `WireApplication` interface that matches the actual API JSON (millis as numbers, etc.) and a narrow `ApplicationStatus` matching the backend's 10-value enum.
+- `apps/university/src/lib/mappers.test.ts` — 18 tests covering every mapper + display helper + the static label/tone records.
+
+Deletions:
+
+- `apps/university/src/lib/mock-data.ts` (167 lines).
+- `apps/university/src/lib/types.ts` (127 lines, mock-only rich shapes).
+
+Tooling:
+
+- `apps/university/tsconfig.json` adds `"exclude": ["src/**/*.test.ts", ...]` so the production build's typecheck doesn't trip on `bun:test` imports.
+
+End-to-end smoke verified: `curl POST /auth/login` as `admissions@eth.test` (seeded), then `GET /portal/university/dashboard` and `GET /applications` return the seeded fixture data — confirming the wire shapes match the mappers' assumptions.
+
+### Why it was done
+
+Phase 10.4 is the first concrete per-app migration. The pattern this PR establishes — mappers seam, TanStack Query for everything, ComingSoon for un-backed routes — is the template for the next four (bank, student, counselor, admin). Going first means resolving every "what shape do I trust" question in this PR so the others can lift the pattern verbatim.
+
+The migration deliberately drops UI complexity that the backend doesn't support (test scores, scholarships, essays, activities, honours, reviewer notes, partner-bank metadata). Phase 10's goal is "swap mocks for real API," not "reimplement mock features against a partial backend." Each removed feature has a tracked follow-up under §10.6.
+
+### How it works
+
+**`WireApplication` is locally defined.** `@verifly/types` declares `Application` as a loose superset where every field is optional and `submittedAt` is a `string`. The wire is tighter — required fields are required, and timestamps are millis as numbers. Defining a local `WireApplication` interface in `mappers.ts` means the mappers stay correctly typed without waiting for `@verifly/types` to be tightened. The cast happens at exactly one boundary: `res.data as unknown as WireApplication[]` inside the `queryFn`.
+
+**`ApplicationStatus` is also locally narrowed.** The canonical type from `@verifly/types` includes 6 legacy statuses the backend doesn't accept (`conditionally_accepted`, `accepted`, `missing_documents`, `not_started`, `in_progress`, `complete`). Using the canonical type meant `Record<ApplicationStatus, string>` required entries for those values too — entries that would never be exercised. The mapper exports a 10-value union that matches `apps/api/src/db/enums.ts`, and routes import the type from `@/lib/mappers` instead of `@verifly/api-client`. One cast at the dashboard endpoint (`s.status as ApplicationStatus`) handles the edge where the canonical type still leaks in via `UniversityDashboard.recentSubmissions[].status`.
+
+**`useQueries` for the per-row student lookup.** Each application references a `studentId`, but `apiClient.applications.list` doesn't denormalise the student. `useQueries` fires one `students.get(id)` per unique studentId, with TanStack Query handling deduping + cache reuse. For 5 seeded students this is 5 round-trips after the first — acceptable for dev, and TanStack Query caches them at `staleTime: 60_000` so navigation doesn't re-fetch. A future optimisation is a backend `?include=student` parameter or a batch `GET /students?ids=…` endpoint; not in scope here.
+
+**Mutation invalidates dependent queries.** The state-transition button fires `apiClient.applications.update(id, { status })` through `useMutation`, then on `onSuccess` invalidates both the per-application key and the applications-list key. TanStack Query refetches both, so the detail page and the list page stay consistent without a page reload. Without this, the list would show stale status until the user navigated away and back.
+
+**`<ComingSoon />` stubs are honest.** Each stub names the feature, explains why it's deferred (linking to §10.6), and renders nothing else. No fake data, no simulated UI. A user clicking "Messages" sees "Messaging — coming, see §10.6" — not a mock thread that pretends to work.
+
+**Test infra deferred, not faked.** A "render the dashboard, click transition, assert API call" e2e needs Playwright or jsdom + react-testing-library plus a vitest config across 5 apps. That's substantial per-app setup work and not the right thing to bake into the first per-app migration. Instead, this PR has a thorough unit test for the mapper layer (the only new logic) and the e2e infra is tracked as a Phase 10.5 follow-up.
+
+### Key concepts
+
+- **Local wire types absorb upstream looseness.** When the canonical type is broader than reality, redefine the narrow shape at the consumer's boundary. Don't change the canonical type for one consumer's needs.
+- **Local enums absorb upstream sprawl.** Same pattern as wire types but for unions. `Record<NarrowUnion, X>` gives you exhaustiveness; `Record<WideUnion, X>` forces you to pad with values you don't use.
+- **One cast per boundary.** Acceptable to cast `res.data as unknown as WireApplication[]` once inside the `queryFn`. Spreading casts across components is a smell.
+- **`useQueries` for arrays of dependent fetches.** Deduplicates, parallelises, and shares the cache with single `useQuery` calls keyed on the same key.
+- **`onSuccess` + `invalidateQueries` is the universal mutation pattern.** Pass the matching queryKey prefixes to invalidate; TanStack Query refetches the lot.
+- **Drop UI features when the backend doesn't support them.** A faithful migration to a partial backend is a lossy migration — a PR that tries to preserve every mock feature is a PR that doesn't ship Phase 10.
+
+### Best practices
+
+- Define a `WireX` interface locally per app for each entity that has shape drift, with one cast at the queryFn boundary.
+- Define narrow string-union types in `mappers.ts` if the canonical type's superset breaks `Record<>` exhaustiveness for that app's needs.
+- Use TanStack Query's `staleTime: 60_000` for static lookup data (students, organisations) so route changes don't refetch.
+- Always `invalidateQueries` after a mutation — both the affected entity's key and any list keys that include it.
+- For "untyped from one perspective, fully typed from another" boundaries (`as unknown as Wire`), put a one-line comment explaining the drift so the next contributor doesn't try to "fix" it by removing the cast.
+- Co-locate `*.test.ts` next to the source. Add `"exclude"` to the app's tsconfig if the test runtime imports (`bun:test`, `vitest`) aren't part of the build's type set.
+
+### Mistakes to avoid
+
+- **Don't try to preserve every mock feature against a partial backend.** That's a phase 11+ project, not Phase 10.
+- **Don't use the canonical `Application` type from `@verifly/types` directly inside components.** Its loose typing leaks `string | undefined` into every field. Map it to a local UI shape.
+- **Don't cast `as Application` inside JSX.** The cast belongs at the queryFn boundary, once, not 30 times.
+- **Don't fire `useQuery` per row inside `.map()` in a component.** Lift to `useQueries` at the parent — same effect, single request order, predictable cache key set.
+- **Don't skip `invalidateQueries` after a mutation.** The list view will be stale until the next route change and the user will think the mutation didn't work.
+- **Don't fake an e2e test.** A test that mounts the component but stubs every fetch and asserts a render is not an e2e test — it's a render test. Either set up the e2e infra (Phase 10.5 follow-up), or write proper unit tests for the new logic, but be honest about which.
+
+### Next up
+
+Phase 10.4 continues with `bank`. The university PR is the template: apiClient via TanStack Query for everything backend-parity, `<ComingSoon />` for the rest, mappers seam absorbs wire-shape drift, mock data files deleted, mappers unit-tested. After bank: student → counselor → admin. Phase 10.5 picks up the cross-app exit gate (mock-sweep grep, e2e infra, manual cross-portal walkthrough on seed data).

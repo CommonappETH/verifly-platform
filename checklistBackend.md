@@ -376,7 +376,7 @@ For each app in order (university → bank → student → counselor → admin),
 
 Per-app targets:
 
-- [ ] **university** — `applicants`, `applications`, `decisions` to API; `messages`, `reports`, `scholarships` to `<ComingSoon />`. Delete `apps/university/src/lib/mock-data.ts`.
+- [x] **university** — `applicants`, `applications`, `decisions`, `index` (dashboard) to API; `messages`, `reports`, `scholarships` to `<ComingSoon />`. Deleted `apps/university/src/lib/mock-data.ts` + `lib/types.ts`. New `lib/mappers.ts` is the wire→UI seam (defines a narrow `ApplicationStatus` mirroring the backend's enum so `Record<ApplicationStatus, …>` lookups stay exhaustive). 18-test mapper unit suite (`mappers.test.ts`). End-to-end smoke against the seeded DB confirmed `admissions@eth.test` can read the dashboard + applications. (e2e UI test infra not set up yet — tracked as a Phase 10.5 follow-up to install once across all 5 apps.)
 - [ ] **bank** — `requests`, `approvals`, `verification.$id` to API. Delete `apps/bank/src/lib/api.ts` (the existing mock-wiring shim) and `apps/bank/src/lib/mock-data.ts`. Bank-side messaging routes go to `<ComingSoon />` until messaging exists.
 - [ ] **student** — `applications`, `documents`, `verification`, `university.$universityId`, `applications_.$applicationId` to API. `essays`, `explore`, `messages`, `scholarships` to `<ComingSoon />`. Delete `apps/student/src/lib/mock-data.ts` last.
 - [ ] **counselor** — `students.index`, `students_.$id`, `submissions`, `document-requests` to API. `messages`, `reports` to `<ComingSoon />`. Delete `apps/counselor/src/lib/mock`.

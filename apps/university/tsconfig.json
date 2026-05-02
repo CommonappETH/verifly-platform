@@ -1,6 +1,7 @@
 {
   "extends": "@verifly/config/tsconfig.base.json",
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "eslint.config.js"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"]
